@@ -182,7 +182,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
       String processing = jsonMessage.getAsJsonPrimitive("processing").getAsString();
 
       log.info("fakeClients {}, timeBetweenClients {}, playTime {}, processing {}", fakeClients,
-          timeBetweenClients, processing);
+          timeBetweenClients, playTime, processing);
 
       // TODO use these parameters
 
