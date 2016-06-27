@@ -72,6 +72,11 @@
 			<groupId>org.kurento</groupId>
 			<artifactId>kurento-utils-js</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.kurento</groupId>
+			<artifactId>kurento-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 
 		<!-- Nubomedia -->
 		<dependency>
