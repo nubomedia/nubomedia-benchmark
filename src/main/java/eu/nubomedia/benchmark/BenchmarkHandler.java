@@ -54,7 +54,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
   public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
     JsonObject jsonMessage =
         new GsonBuilder().create().fromJson(message.getPayload(), JsonObject.class);
-    log.debug("Incoming message from session '{}': {}", session.getId(), jsonMessage);
+    log.info("Incoming message from session '{}': {}", session.getId(), jsonMessage);
 
     try {
       switch (jsonMessage.get("id").getAsString()) {
@@ -123,7 +123,6 @@ public class BenchmarkHandler extends TextWebSocketHandler {
       WebRtcEndpoint presenterWebRtc = presenterUserSession.getWebRtcEndpoint();
 
       presenterWebRtc.addOnIceCandidateListener(new EventListener<OnIceCandidateEvent>() {
-
         @Override
         public void onEvent(OnIceCandidateEvent event) {
           JsonObject response = new JsonObject();
@@ -217,8 +216,11 @@ public class BenchmarkHandler extends TextWebSocketHandler {
 
   private synchronized void stop(WebSocketSession session) {
     String sessionId = session.getId();
+    log.info("Stop sessionId {}", sessionId);
     if (presenterUserSession != null
         && presenterUserSession.getSession().getId().equals(sessionId)) {
+      presenterUserSession = null;
+
       for (UserSession viewer : viewers.values()) {
         JsonObject response = new JsonObject();
         response.addProperty("id", "stopCommunication");
@@ -230,16 +232,17 @@ public class BenchmarkHandler extends TextWebSocketHandler {
         pipeline.release();
       }
       pipeline = null;
-      presenterUserSession = null;
 
       log.info("Destroying kurentoClient (session {})", sessionId);
       kurentoClient.destroy();
 
     } else if (viewers.containsKey(sessionId)) {
-      if (viewers.get(sessionId).getWebRtcEndpoint() != null) {
-        viewers.get(sessionId).getWebRtcEndpoint().release();
-      }
+      log.info("Removing viewer sessionId {}", sessionId);
+      WebRtcEndpoint webRtcEndpoint = viewers.get(sessionId).getWebRtcEndpoint();
       viewers.remove(sessionId);
+      if (webRtcEndpoint != null) {
+        webRtcEndpoint.release();
+      }
     }
   }
 
@@ -255,6 +258,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
 
   @Override
   public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
+    log.info("Closed websocket connection of session {}", session.getId());
     stop(session);
   }
 
