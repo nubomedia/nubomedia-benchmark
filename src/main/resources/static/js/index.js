@@ -19,6 +19,7 @@ var webRtcPeer;
 
 window.onload = function() {
 	console = new Console();
+	console["debug"] = console.info;
 	video = document.getElementById('video');
 	disableStopButton();
 }
@@ -46,8 +47,7 @@ ws.onmessage = function(message) {
 	case 'iceCandidate':
 		webRtcPeer.addIceCandidate(parsedMessage.candidate, function(error) {
 			if (error) {
-				console.error("Error adding candidate: " + error);
-				return;
+				return console.error("Error adding candidate: " + error);
 			}
 		});
 		break;
@@ -67,8 +67,9 @@ function presenterResponse(message) {
 		dispose();
 	} else {
 		webRtcPeer.processAnswer(message.sdpAnswer, function(error) {
-			if (error)
+			if (error) {
 				return console.error(error);
+			}
 		});
 	}
 }
@@ -80,8 +81,9 @@ function viewerResponse(message) {
 		dispose();
 	} else {
 		webRtcPeer.processAnswer(message.sdpAnswer, function(error) {
-			if (error)
+			if (error) {
 				return console.error(error);
+			}
 		});
 	}
 }
@@ -107,8 +109,9 @@ function presenter() {
 }
 
 function onOfferPresenter(error, offerSdp) {
-	if (error)
+	if (error) {
 		return console.error('Error generating the offer');
+	}
 	console.info('Invoking SDP offer callback function ' + location.host);
 	var message = {
 		id : 'presenter',
@@ -138,8 +141,9 @@ function viewer() {
 }
 
 function onOfferViewer(error, offerSdp) {
-	if (error)
+	if (error) {
 		return console.error('Error generating the offer');
+	}
 	console.info('Invoking SDP offer callback function ' + location.host);
 
 	var fakeClients = document.getElementById('fakeClients').value;
