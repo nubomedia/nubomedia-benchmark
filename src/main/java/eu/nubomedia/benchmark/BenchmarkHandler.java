@@ -45,14 +45,15 @@ public class BenchmarkHandler extends TextWebSocketHandler {
 
   @Override
   public void handleTextMessage(WebSocketSession wsSession, TextMessage message) throws Exception {
-    JsonObject jsonMessage =
-        new GsonBuilder().create().fromJson(message.getPayload(), JsonObject.class);
-
-    String sessionNumber = jsonMessage.get("sessionNumber").getAsString();
-    log.info("Incoming message from session number {} and WS sessionId {} : {}", sessionNumber,
-        wsSession.getId(), jsonMessage);
-
+    String sessionNumber = null;
     try {
+      JsonObject jsonMessage =
+          new GsonBuilder().create().fromJson(message.getPayload(), JsonObject.class);
+
+      sessionNumber = jsonMessage.get("sessionNumber").getAsString();
+      log.info("Incoming message from session number {} and WS sessionId {} : {}", sessionNumber,
+          wsSession.getId(), jsonMessage);
+
       switch (jsonMessage.get("id").getAsString()) {
         case "presenter":
           presenter(wsSession, sessionNumber,
@@ -92,7 +93,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
       sendMessage(wsSession, new TextMessage(response.toString()));
 
     } else {
-      UserSession presenterSession = new UserSession(wsSession, this);
+      UserSession presenterSession = new UserSession(wsSession, sessionNumber, this);
       presenters.put(sessionNumber, presenterSession);
 
       // TODO read points
@@ -123,7 +124,9 @@ public class BenchmarkHandler extends TextWebSocketHandler {
         sendMessage(wsSession, new TextMessage(response.toString()));
 
       } else {
-        UserSession viewerSession = new UserSession(wsSession, this);
+
+        // TODO bug here
+        UserSession viewerSession = new UserSession(wsSession, sessionNumber, this);
         viewersPerPresenter.put(wsSessionId, viewerSession);
         viewerSession.initViewer(presenters.get(sessionNumber), sdpOffer);
       }
@@ -143,7 +146,10 @@ public class BenchmarkHandler extends TextWebSocketHandler {
 
     log.info("Stopping session number {} with WS sessionId {}", sessionNumber, wsSessionId);
 
-    if (presenters.containsKey(sessionNumber)) {
+    UserSession userSession = findUserByWsSession(wsSession);
+
+    if (presenters.containsKey(sessionNumber) && presenters.get(sessionNumber).getWebSocketSession()
+        .getId().equals(userSession.getWebSocketSession().getId())) {
       // 1. Stop arrive from presenter
       log.info("Releasing presenter of session number {} (WS sessionId {})", sessionNumber,
           wsSessionId);
@@ -163,11 +169,15 @@ public class BenchmarkHandler extends TextWebSocketHandler {
           response.addProperty("id", "stopCommunication");
           sendMessage(viewer.getWebSocketSession(), new TextMessage(response.toString()));
         }
+        // Remove viewer session from map
         viewers.remove(sessionNumber);
       }
 
       // Release media pipeline and kurentoClient of presenter session
       presenters.get(sessionNumber).release();
+
+      // Remove presenter session from map
+      presenters.remove(sessionNumber);
 
     } else if (viewers.containsKey(sessionNumber)
         && viewers.get(sessionNumber).containsKey(wsSessionId)) {
@@ -180,7 +190,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
           wsSessionId, sessionNumber);
       viewersPerPresenter.get(wsSessionId).releaseWebRtcEndpoint();
 
-      log.info("Removing viewer sessionId {}", wsSessionId);
+      log.info("Removing viewer WS sessionId {}", wsSessionId);
       viewersPerPresenter.remove(wsSessionId);
 
       log.info("There are {} viewers at this moment ({}) in session number {}",
@@ -190,21 +200,12 @@ public class BenchmarkHandler extends TextWebSocketHandler {
 
   private void onIceCandidate(WebSocketSession wsSession, String sessionNumber,
       JsonObject candidate) {
-    UserSession user = null;
     String wsSessionId = wsSession.getId();
-
-    // ICE candidate for presenter or viewer?
-    if (presenters.containsKey(sessionNumber)) {
-      user = presenters.get(sessionNumber);
-    } else if (viewers.containsKey(sessionNumber)
-        && viewers.get(sessionNumber).containsKey(wsSessionId)) {
-      user = viewers.get(sessionNumber).get(wsSessionId);
-    }
-    if (user != null) {
-      user.addCandidate(candidate);
+    UserSession userSession = findUserByWsSession(wsSession);
+    if (userSession != null) {
+      userSession.addCandidate(candidate);
     } else {
-      log.warn(
-          "*** ICE candidate not valid (WS sessionID {}) (session Number {}) (ICE candidate {}) ***",
+      log.warn("ICE candidate not valid (WS sessionID {}) (session Number {}) (ICE candidate {})",
           wsSessionId, sessionNumber, candidate);
     }
   }
@@ -233,16 +234,12 @@ public class BenchmarkHandler extends TextWebSocketHandler {
     stop(wsSession, sessionNumber);
   }
 
-  @Override
-  public void afterConnectionClosed(WebSocketSession wsSession, CloseStatus status)
-      throws Exception {
+  private UserSession findUserByWsSession(WebSocketSession wsSession) {
     String wsSessionId = wsSession.getId();
-    log.info("Closed connection of WS sessionId {}", wsSessionId);
-
     // Find WS session in presenters
     for (String sessionNumber : presenters.keySet()) {
       if (presenters.get(sessionNumber).getWebSocketSession().getId().equals(wsSessionId)) {
-        stop(wsSession, sessionNumber);
+        return presenters.get(sessionNumber);
       }
     }
 
@@ -250,10 +247,11 @@ public class BenchmarkHandler extends TextWebSocketHandler {
     for (String sessionNumber : viewers.keySet()) {
       for (UserSession userSession : viewers.get(sessionNumber).values()) {
         if (userSession.getWebSocketSession().getId().equals(wsSessionId)) {
-          stop(wsSession, sessionNumber);
+          return userSession;
         }
       }
     }
+    return null;
   }
 
   public synchronized void sendMessage(WebSocketSession session, TextMessage message) {
@@ -263,6 +261,18 @@ public class BenchmarkHandler extends TextWebSocketHandler {
 
     } catch (IOException e) {
       log.error("Exception sending message", e);
+    }
+  }
+
+  @Override
+  public void afterConnectionClosed(WebSocketSession wsSession, CloseStatus status)
+      throws Exception {
+    String wsSessionId = wsSession.getId();
+    log.info("Closed connection of WS sessionId {}", wsSessionId);
+
+    UserSession userSession = findUserByWsSession(wsSession);
+    if (userSession != null) {
+      stop(wsSession, userSession.getSessionNumber());
     }
   }
 

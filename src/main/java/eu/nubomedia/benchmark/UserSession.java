@@ -44,9 +44,11 @@ public class UserSession {
   private WebRtcEndpoint webRtcEndpoint;
   private KurentoClient kurentoClient;
   private MediaPipeline mediaPipeline;
+  private String sessionNumber;
 
-  public UserSession(WebSocketSession wsSession, BenchmarkHandler handler) {
+  public UserSession(WebSocketSession wsSession, String sessionNumber, BenchmarkHandler handler) {
     this.wsSession = wsSession;
+    this.sessionNumber = sessionNumber;
     this.handler = handler;
   }
 
@@ -131,6 +133,10 @@ public class UserSession {
 
   public WebRtcEndpoint getWebRtcEndpoint() {
     return webRtcEndpoint;
+  }
+
+  public String getSessionNumber() {
+    return sessionNumber;
   }
 
 }
