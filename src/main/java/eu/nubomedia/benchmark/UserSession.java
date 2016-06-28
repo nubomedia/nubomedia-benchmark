@@ -15,10 +15,13 @@
 
 package eu.nubomedia.benchmark;
 
-import java.io.IOException;
-
+import org.kurento.client.EventListener;
 import org.kurento.client.IceCandidate;
+import org.kurento.client.KurentoClient;
+import org.kurento.client.MediaPipeline;
+import org.kurento.client.OnIceCandidateEvent;
 import org.kurento.client.WebRtcEndpoint;
+import org.kurento.jsonrpc.JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.TextMessage;
@@ -35,31 +38,99 @@ import com.google.gson.JsonObject;
 public class UserSession {
 
   private final Logger log = LoggerFactory.getLogger(UserSession.class);
-  private final WebSocketSession session;
+
+  private BenchmarkHandler handler;
+  private WebSocketSession wsSession;
   private WebRtcEndpoint webRtcEndpoint;
+  private KurentoClient kurentoClient;
+  private MediaPipeline mediaPipeline;
 
-  public UserSession(WebSocketSession session) {
-    this.session = session;
+  public UserSession(WebSocketSession wsSession, BenchmarkHandler handler) {
+    this.wsSession = wsSession;
+    this.handler = handler;
   }
 
-  public WebSocketSession getSession() {
-    return session;
+  public void initPresenter(String sdpOffer) {
+    log.info("Init presenter for WS session {}", wsSession.getId());
+
+    // TODO read points here
+    kurentoClient = KurentoClient.create();
+    mediaPipeline = kurentoClient.createMediaPipeline();
+    webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
+    addOnIceCandidateListener();
+
+    String sdpAnswer = webRtcEndpoint.processOffer(sdpOffer);
+    JsonObject response = new JsonObject();
+    response.addProperty("id", "presenterResponse");
+    response.addProperty("response", "accepted");
+    response.addProperty("sdpAnswer", sdpAnswer);
+
+    handler.sendMessage(wsSession, new TextMessage(response.toString()));
+    webRtcEndpoint.gatherCandidates();
   }
 
-  public void sendMessage(JsonObject message) throws IOException {
-    log.debug("Sending message from user with session Id '{}': {}", session.getId(), message);
-    session.sendMessage(new TextMessage(message.toString()));
+  public void initViewer(UserSession presenterSession, String sdpOffer) {
+    mediaPipeline = presenterSession.getMediaPipeline();
+    webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
+    addOnIceCandidateListener();
+
+    // Connectivity
+    // TODO filtering
+    presenterSession.getWebRtcEndpoint().connect(webRtcEndpoint);
+
+    String sdpAnswer = webRtcEndpoint.processOffer(sdpOffer);
+    JsonObject response = new JsonObject();
+    response.addProperty("id", "viewerResponse");
+    response.addProperty("response", "accepted");
+    response.addProperty("sdpAnswer", sdpAnswer);
+
+    handler.sendMessage(wsSession, new TextMessage(response.toString()));
+    webRtcEndpoint.gatherCandidates();
+  }
+
+  public void addCandidate(JsonObject jsonCandidate) {
+    IceCandidate candidate = new IceCandidate(jsonCandidate.get("candidate").getAsString(),
+        jsonCandidate.get("sdpMid").getAsString(), jsonCandidate.get("sdpMLineIndex").getAsInt());
+    webRtcEndpoint.addIceCandidate(candidate);
+  }
+
+  private void addOnIceCandidateListener() {
+    webRtcEndpoint.addOnIceCandidateListener(new EventListener<OnIceCandidateEvent>() {
+      @Override
+      public void onEvent(OnIceCandidateEvent event) {
+        JsonObject response = new JsonObject();
+        response.addProperty("id", "iceCandidate");
+        response.add("candidate", JsonUtils.toJsonObject(event.getCandidate()));
+        handler.sendMessage(wsSession, new TextMessage(response.toString()));
+      }
+    });
+  }
+
+  public void releaseWebRtcEndpoint() {
+    webRtcEndpoint.release();
+  }
+
+  public void release() {
+    log.info("Releasing media pipeline");
+    if (mediaPipeline != null) {
+      mediaPipeline.release();
+    }
+    mediaPipeline = null;
+
+    log.info("Destroying kurentoClient (WS session {})", wsSession.getId());
+    kurentoClient.destroy();
+  }
+
+  public WebSocketSession getWebSocketSession() {
+    return wsSession;
+  }
+
+  public MediaPipeline getMediaPipeline() {
+    return mediaPipeline;
   }
 
   public WebRtcEndpoint getWebRtcEndpoint() {
     return webRtcEndpoint;
   }
 
-  public void setWebRtcEndpoint(WebRtcEndpoint webRtcEndpoint) {
-    this.webRtcEndpoint = webRtcEndpoint;
-  }
-
-  public void addCandidate(IceCandidate candidate) {
-    webRtcEndpoint.addIceCandidate(candidate);
-  }
 }

@@ -113,8 +113,11 @@ function onOfferPresenter(error, offerSdp) {
 		return console.error('Error generating the offer');
 	}
 	console.info('Invoking SDP offer callback function ' + location.host);
+
+	var sessionNumber = document.getElementById('sessionNumber').value;
 	var message = {
 		id : 'presenter',
+		sessionNumber : sessionNumber,
 		sdpOffer : offerSdp
 	}
 	sendMessage(message);
@@ -146,6 +149,7 @@ function onOfferViewer(error, offerSdp) {
 	}
 	console.info('Invoking SDP offer callback function ' + location.host);
 
+	var sessionNumber = document.getElementById('sessionNumber').value;
 	var fakeClients = document.getElementById('fakeClients').value;
 	var timeBetweenClients = document.getElementById('timeBetweenClients').value;
 	var playTime = document.getElementById('playTime').value;
@@ -154,6 +158,7 @@ function onOfferViewer(error, offerSdp) {
 	var message = {
 		id : 'viewer',
 		sdpOffer : offerSdp,
+		sessionNumber : sessionNumber,
 		fakeClients : fakeClients,
 		timeBetweenClients : timeBetweenClients,
 		playTime : playTime,
@@ -164,9 +169,11 @@ function onOfferViewer(error, offerSdp) {
 
 function onIceCandidate(candidate) {
 	console.log("Local candidate" + JSON.stringify(candidate));
+	var sessionNumber = document.getElementById('sessionNumber').value;
 
 	var message = {
 		id : 'onIceCandidate',
+		sessionNumber : sessionNumber,
 		candidate : candidate
 	};
 	sendMessage(message);
