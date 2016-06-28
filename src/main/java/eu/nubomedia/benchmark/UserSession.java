@@ -28,6 +28,7 @@ import org.kurento.client.ImageOverlayFilter;
 import org.kurento.client.KurentoClient;
 import org.kurento.client.MediaPipeline;
 import org.kurento.client.OnIceCandidateEvent;
+import org.kurento.client.Properties;
 import org.kurento.client.WebRtcEndpoint;
 import org.kurento.client.ZBarFilter;
 import org.kurento.jsonrpc.JsonUtils;
@@ -68,11 +69,14 @@ public class UserSession {
     this.handler = handler;
   }
 
-  public void initPresenter(String sdpOffer) {
-    log.info("Init presenter for WS session {}", wsSession.getId());
+  public void initPresenter(String sdpOffer, int loadPoints) {
+    log.info("Init presenter [session number {} WS session {}] with {} points", sessionNumber,
+        wsSession.getId(), loadPoints);
 
-    // TODO read points here
-    kurentoClient = KurentoClient.create();
+    Properties properties = new Properties();
+    properties.add("loadPoints", loadPoints);
+    kurentoClient = KurentoClient.create(properties);
+
     mediaPipeline = kurentoClient.createMediaPipeline();
     webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
     addOnIceCandidateListener();

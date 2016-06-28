@@ -115,9 +115,11 @@ function onOfferPresenter(error, offerSdp) {
 	console.info('Invoking SDP offer callback function ' + location.host);
 
 	var sessionNumber = document.getElementById('sessionNumber').value;
+	var loadPoints = document.getElementById('loadPoints').value;
 	var message = {
 		id : 'presenter',
 		sessionNumber : sessionNumber,
+		loadPoints : loadPoints,
 		sdpOffer : offerSdp
 	}
 	sendMessage(message);

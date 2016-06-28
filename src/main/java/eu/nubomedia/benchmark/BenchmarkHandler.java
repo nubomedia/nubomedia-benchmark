@@ -57,7 +57,8 @@ public class BenchmarkHandler extends TextWebSocketHandler {
       switch (jsonMessage.get("id").getAsString()) {
         case "presenter":
           String sdpOffer = jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString();
-          presenter(wsSession, sessionNumber, sdpOffer);
+          int loadPoints = jsonMessage.getAsJsonPrimitive("loadPoints").getAsInt();
+          presenter(wsSession, sessionNumber, sdpOffer, loadPoints);
           break;
         case "viewer":
           String processing = jsonMessage.get("processing").getAsString();
@@ -85,7 +86,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
   }
 
   private synchronized void presenter(WebSocketSession wsSession, String sessionNumber,
-      String sdpOffer) {
+      String sdpOffer, int loadPoints) {
     if (presenters.containsKey(sessionNumber)) {
       JsonObject response = new JsonObject();
       response.addProperty("id", "presenterResponse");
@@ -98,8 +99,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
       UserSession presenterSession = new UserSession(wsSession, sessionNumber, this);
       presenters.put(sessionNumber, presenterSession);
 
-      // TODO read points
-      presenterSession.initPresenter(sdpOffer);
+      presenterSession.initPresenter(sdpOffer, loadPoints);
     }
   }
 
