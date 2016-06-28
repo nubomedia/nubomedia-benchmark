@@ -69,12 +69,32 @@
 				</div>
 				<div class="row">
 					<div class="col-xs-8">
+						<label class="control-label" for="sessionNumber">Points
+							per session</label>
+					</div>
+					<div class="col-xs-4">
+						<input class="form-control" type="text" id="sessionPoints"
+							name="sessionPoints" value="100"></input>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-8">
 						<label class="control-label" for="fakeClients">Number of
 							fake clients</label>
 					</div>
 					<div class="col-xs-4">
 						<input class="form-control" type="text" id="fakeClients"
 							name="fakeClients" value="0"></input>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-8">
+						<label class="control-label" for="sessionNumber">Points
+							for KMS for fake clients</label>
+					</div>
+					<div class="col-xs-4">
+						<input class="form-control" type="text" id="fakePoints"
+							name="fakePoints" value="200"></input>
 					</div>
 				</div>
 				<div class="row">
@@ -105,8 +125,14 @@
 					<div class="col-xs-4">
 						<select class="form-control" name="processing" id="processing">
 							<option value="none">None</option>
-							<option value="filter">Filter</option>
 							<option value="encoder">Encoder</option>
+							<option value="face">FaceOverlayFilter</option>
+							<option value="image">ImageOverlayFilter</option>
+							<option value="zbar">ZBarFilter</option>
+							<option value="plate">PlateDetectorFilter</option>
+							<option value="crowd">CrowdDetectorFilter</option>
+							<option value="chroma">ChromaFilter</option>
+							<option value="plate">PlateDetectorFilter</option>
 						</select>
 					</div>
 				</div>

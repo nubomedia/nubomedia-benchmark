@@ -56,15 +56,17 @@ public class BenchmarkHandler extends TextWebSocketHandler {
 
       switch (jsonMessage.get("id").getAsString()) {
         case "presenter":
-          presenter(wsSession, sessionNumber,
-              jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString());
+          String sdpOffer = jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString();
+          presenter(wsSession, sessionNumber, sdpOffer);
           break;
         case "viewer":
-          viewer(wsSession, sessionNumber,
-              jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString());
+          String processing = jsonMessage.get("processing").getAsString();
+          sdpOffer = jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString();
+          viewer(wsSession, sessionNumber, sdpOffer, processing);
           break;
         case "onIceCandidate":
-          onIceCandidate(wsSession, sessionNumber, jsonMessage.get("candidate").getAsJsonObject());
+          JsonObject candidate = jsonMessage.get("candidate").getAsJsonObject();
+          onIceCandidate(wsSession, sessionNumber, candidate);
           break;
         case "stop":
           stop(wsSession, sessionNumber);
@@ -102,7 +104,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
   }
 
   private synchronized void viewer(WebSocketSession wsSession, String sessionNumber,
-      String sdpOffer) {
+      String sdpOffer, String processing) {
     String wsSessionId = wsSession.getId();
 
     if (presenters.containsKey(sessionNumber)) {
@@ -122,13 +124,11 @@ public class BenchmarkHandler extends TextWebSocketHandler {
         response.addProperty("message", "You are already viewing in session number "
             + viewersPerPresenter + ". Use a different browser/tab to add additional viewers.");
         sendMessage(wsSession, new TextMessage(response.toString()));
-
       } else {
-
-        // TODO bug here
         UserSession viewerSession = new UserSession(wsSession, sessionNumber, this);
         viewersPerPresenter.put(wsSessionId, viewerSession);
-        viewerSession.initViewer(presenters.get(sessionNumber), sdpOffer);
+
+        viewerSession.initViewer(presenters.get(sessionNumber), sdpOffer, processing);
       }
 
     } else {

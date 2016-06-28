@@ -15,13 +15,29 @@
 
 package eu.nubomedia.benchmark;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.kurento.client.EventListener;
+import org.kurento.client.FaceOverlayFilter;
+import org.kurento.client.Filter;
+import org.kurento.client.FilterType;
+import org.kurento.client.GStreamerFilter;
 import org.kurento.client.IceCandidate;
+import org.kurento.client.ImageOverlayFilter;
 import org.kurento.client.KurentoClient;
 import org.kurento.client.MediaPipeline;
 import org.kurento.client.OnIceCandidateEvent;
 import org.kurento.client.WebRtcEndpoint;
+import org.kurento.client.ZBarFilter;
 import org.kurento.jsonrpc.JsonUtils;
+import org.kurento.module.chroma.ChromaFilter;
+import org.kurento.module.chroma.WindowParam;
+import org.kurento.module.crowddetector.CrowdDetectorFilter;
+import org.kurento.module.crowddetector.RegionOfInterest;
+import org.kurento.module.crowddetector.RegionOfInterestConfig;
+import org.kurento.module.crowddetector.RelativePoint;
+import org.kurento.module.platedetector.PlateDetectorFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.TextMessage;
@@ -71,14 +87,78 @@ public class UserSession {
     webRtcEndpoint.gatherCandidates();
   }
 
-  public void initViewer(UserSession presenterSession, String sdpOffer) {
+  public void initViewer(UserSession presenterSession, String sdpOffer, String filterId) {
     mediaPipeline = presenterSession.getMediaPipeline();
     webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
     addOnIceCandidateListener();
 
     // Connectivity
-    // TODO filtering
-    presenterSession.getWebRtcEndpoint().connect(webRtcEndpoint);
+    switch (filterId) {
+      case "encoder":
+        Filter filter = new GStreamerFilter.Builder(mediaPipeline, "capsfilter caps=video/x-raw")
+            .withFilterType(FilterType.VIDEO).build();
+        presenterSession.getWebRtcEndpoint().connect(filter);
+        filter.connect(webRtcEndpoint);
+        log.info(
+            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> GStreamerFilter -> WebRtcEndpoint",
+            sessionNumber, wsSession.getId());
+        break;
+      case "face":
+        filter = new FaceOverlayFilter.Builder(mediaPipeline).build();
+        presenterSession.getWebRtcEndpoint().connect(filter);
+        filter.connect(webRtcEndpoint);
+        log.info(
+            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> FaceOverlayFilter -> WebRtcEndpoint",
+            sessionNumber, wsSession.getId());
+        break;
+      case "image":
+        filter = new ImageOverlayFilter.Builder(mediaPipeline).build();
+        presenterSession.getWebRtcEndpoint().connect(filter);
+        filter.connect(webRtcEndpoint);
+        log.info(
+            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> ImageOverlayFilter -> WebRtcEndpoint",
+            sessionNumber, wsSession.getId());
+        break;
+      case "zbar":
+        filter = new ZBarFilter.Builder(mediaPipeline).build();
+        presenterSession.getWebRtcEndpoint().connect(filter);
+        filter.connect(webRtcEndpoint);
+        log.info(
+            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> ZBarFilter -> WebRtcEndpoint",
+            sessionNumber, wsSession.getId());
+        break;
+      case "plate":
+        filter = new PlateDetectorFilter.Builder(mediaPipeline).build();
+        presenterSession.getWebRtcEndpoint().connect(filter);
+        filter.connect(webRtcEndpoint);
+        log.info(
+            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> PlateDetectorFilter -> WebRtcEndpoint",
+            sessionNumber, wsSession.getId());
+        break;
+      case "crowd":
+        List<RegionOfInterest> rois = getDummyRois();
+        filter = new CrowdDetectorFilter.Builder(mediaPipeline, rois).build();
+        presenterSession.getWebRtcEndpoint().connect(filter);
+        filter.connect(webRtcEndpoint);
+        log.info(
+            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> CrowdDetectorFilter -> WebRtcEndpoint",
+            sessionNumber, wsSession.getId());
+        break;
+      case "chroma":
+        filter = new ChromaFilter.Builder(mediaPipeline, new WindowParam(0, 0, 640, 480)).build();
+        presenterSession.getWebRtcEndpoint().connect(filter);
+        filter.connect(webRtcEndpoint);
+        log.info(
+            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> ChromaFilter -> WebRtcEndpoint",
+            sessionNumber, wsSession.getId());
+        break;
+      case "none":
+      default:
+        presenterSession.getWebRtcEndpoint().connect(webRtcEndpoint);
+        log.info("Pipeline [session number {}, WS session {}] WebRtcEndpoint -> WebRtcEndpoint",
+            sessionNumber, wsSession.getId());
+        break;
+    }
 
     String sdpAnswer = webRtcEndpoint.processOffer(sdpOffer);
     JsonObject response = new JsonObject();
@@ -137,6 +217,48 @@ public class UserSession {
 
   public String getSessionNumber() {
     return sessionNumber;
+  }
+
+  private List<RegionOfInterest> getDummyRois() {
+    List<RelativePoint> points = new ArrayList<>();
+
+    float x = 0;
+    float y = 0;
+    points.add(new RelativePoint(x, y));
+
+    x = 1;
+    y = 0;
+    points.add(new RelativePoint(x, y));
+
+    x = 1;
+    y = 1;
+    points.add(new RelativePoint(x, y));
+
+    x = 0;
+    y = 1;
+    points.add(new RelativePoint(x, y));
+
+    RegionOfInterestConfig config = new RegionOfInterestConfig();
+
+    config.setFluidityLevelMin(10);
+    config.setFluidityLevelMed(35);
+    config.setFluidityLevelMax(65);
+    config.setFluidityNumFramesToEvent(5);
+    config.setOccupancyLevelMin(10);
+    config.setOccupancyLevelMed(35);
+    config.setOccupancyLevelMax(65);
+    config.setOccupancyNumFramesToEvent(5);
+
+    config.setSendOpticalFlowEvent(false);
+
+    config.setOpticalFlowNumFramesToEvent(3);
+    config.setOpticalFlowNumFramesToReset(3);
+    config.setOpticalFlowAngleOffset(0);
+
+    List<RegionOfInterest> rois = new ArrayList<>();
+    rois.add(new RegionOfInterest(points, config, "dummyRoy"));
+
+    return rois;
   }
 
 }
