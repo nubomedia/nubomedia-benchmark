@@ -157,8 +157,8 @@ function onOfferViewer(error, offerSdp) {
 
 	var message = {
 		id : 'viewer',
-		sdpOffer : offerSdp,
 		sessionNumber : sessionNumber,
+		sdpOffer : offerSdp,
 		fakeClients : fakeClients,
 		timeBetweenClients : timeBetweenClients,
 		playTime : playTime,
@@ -180,8 +180,10 @@ function onIceCandidate(candidate) {
 }
 
 function stop() {
+	var sessionNumber = document.getElementById('sessionNumber').value;
 	var message = {
-		id : 'stop'
+		id : 'stop',
+		sessionNumber : sessionNumber
 	}
 	sendMessage(message);
 	dispose();
