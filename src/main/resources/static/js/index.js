@@ -34,10 +34,8 @@ ws.onmessage = function(message) {
 
 	switch (parsedMessage.id) {
 	case 'presenterResponse':
-		presenterResponse(parsedMessage);
-		break;
 	case 'viewerResponse':
-		viewerResponse(parsedMessage);
+		response(parsedMessage);
 		break;
 	case 'error':
 		console.error("Error message from server: " + parsedMessage.message);
@@ -60,21 +58,7 @@ ws.onmessage = function(message) {
 	}
 }
 
-function presenterResponse(message) {
-	if (message.response != 'accepted') {
-		var errorMsg = message.message ? message.message : 'Unknow error';
-		console.info('Call not accepted for the following reason: ' + errorMsg);
-		dispose();
-	} else {
-		webRtcPeer.processAnswer(message.sdpAnswer, function(error) {
-			if (error) {
-				return console.error(error);
-			}
-		});
-	}
-}
-
-function viewerResponse(message) {
+function response(message) {
 	if (message.response != 'accepted') {
 		var errorMsg = message.message ? message.message : 'Unknow error';
 		console.info('Call not accepted for the following reason: ' + errorMsg);
@@ -154,7 +138,7 @@ function onOfferViewer(error, offerSdp) {
 	var sessionNumber = document.getElementById('sessionNumber').value;
 	var fakeClients = document.getElementById('fakeClients').value;
 	var timeBetweenClients = document.getElementById('timeBetweenClients').value;
-	var playTime = document.getElementById('playTime').value;
+	var fakePoints = document.getElementById('fakePoints').value;
 	var processing = document.getElementById('processing').value;
 
 	var message = {
@@ -163,7 +147,7 @@ function onOfferViewer(error, offerSdp) {
 		sdpOffer : offerSdp,
 		fakeClients : fakeClients,
 		timeBetweenClients : timeBetweenClients,
-		playTime : playTime,
+		fakePoints : fakePoints,
 		processing : processing
 	}
 	sendMessage(message);

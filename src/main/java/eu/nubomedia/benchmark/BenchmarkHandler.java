@@ -63,7 +63,11 @@ public class BenchmarkHandler extends TextWebSocketHandler {
         case "viewer":
           String processing = jsonMessage.get("processing").getAsString();
           sdpOffer = jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString();
-          viewer(wsSession, sessionNumber, sdpOffer, processing);
+          int fakePoints = jsonMessage.getAsJsonPrimitive("fakePoints").getAsInt();
+          int fakeClients = jsonMessage.getAsJsonPrimitive("fakeClients").getAsInt();
+          int timeBetweenClients = jsonMessage.getAsJsonPrimitive("timeBetweenClients").getAsInt();
+          viewer(wsSession, sessionNumber, sdpOffer, processing, fakePoints, fakeClients,
+              timeBetweenClients);
           break;
         case "onIceCandidate":
           JsonObject candidate = jsonMessage.get("candidate").getAsJsonObject();
@@ -104,7 +108,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
   }
 
   private synchronized void viewer(WebSocketSession wsSession, String sessionNumber,
-      String sdpOffer, String processing) {
+      String sdpOffer, String processing, int fakePoints, int fakeClients, int timeBetweenClients) {
     String wsSessionId = wsSession.getId();
 
     if (presenters.containsKey(sessionNumber)) {
@@ -128,7 +132,8 @@ public class BenchmarkHandler extends TextWebSocketHandler {
         UserSession viewerSession = new UserSession(wsSession, sessionNumber, this);
         viewersPerPresenter.put(wsSessionId, viewerSession);
 
-        viewerSession.initViewer(presenters.get(sessionNumber), sdpOffer, processing);
+        viewerSession.initViewer(presenters.get(sessionNumber), sdpOffer, processing, fakePoints,
+            fakeClients, timeBetweenClients);
       }
 
     } else {

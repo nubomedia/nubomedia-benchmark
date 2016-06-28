@@ -69,52 +69,12 @@
 				</div>
 				<div class="row">
 					<div class="col-xs-8">
-						<label class="control-label" for="loadPoints">Points
-							per session</label>
+						<label class="control-label" for="loadPoints">Points per
+							session</label>
 					</div>
 					<div class="col-xs-4">
 						<input class="form-control" type="text" id="loadPoints"
 							name="loadPoints" value="100"></input>
-					</div>
-				</div>
-				<div class="row">
-					<div class="col-xs-8">
-						<label class="control-label" for="fakeClients">Number of
-							fake clients</label>
-					</div>
-					<div class="col-xs-4">
-						<input class="form-control" type="text" id="fakeClients"
-							name="fakeClients" value="0"></input>
-					</div>
-				</div>
-				<div class="row">
-					<div class="col-xs-8">
-						<label class="control-label" for="sessionNumber">Points
-							for KMS for fake clients</label>
-					</div>
-					<div class="col-xs-4">
-						<input class="form-control" type="text" id="fakePoints"
-							name="fakePoints" value="200"></input>
-					</div>
-				</div>
-				<div class="row">
-					<div class="col-xs-8">
-						<label class="control-label" for="timeBetweenClients">Time
-							between clients (milliseconds)</label>
-					</div>
-					<div class="col-xs-4">
-						<input class="form-control" type="text" id="timeBetweenClients"
-							name="timeBetweenClients" value="1000"></input>
-					</div>
-				</div>
-				<div class="row">
-					<div class="col-xs-8">
-						<label class="control-label" for="playTime">Play time
-							(seconds)</label>
-					</div>
-					<div class="col-xs-4">
-						<input class="form-control" type="text" id="playTime"
-							name="playTime" value="10"></input>
 					</div>
 				</div>
 				<div class="row">
@@ -134,6 +94,59 @@
 							<option value="chroma">ChromaFilter</option>
 							<option value="plate">PlateDetectorFilter</option>
 						</select>
+					</div>
+					<hr>
+				</div>
+
+				<div class="row">
+					<div class="col-xs-8">
+						<label class="control-label" for="fakeClients">Number of
+							fake clients</label>
+					</div>
+					<div class="col-xs-4">
+						<input class="form-control" type="text" id="fakeClients"
+							name="fakeClients" value="0"></input>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-8">
+						<label class="control-label" for="timeBetweenClients">Rate
+							between clients (milliseconds)</label>
+					</div>
+					<div class="col-xs-4">
+						<input class="form-control" type="text" id="timeBetweenClients"
+							name="timeBetweenClients" value="1000"></input>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-8">
+						<label class="control-label" for="playTime">Time with all
+							clients together (seconds)</label>
+					</div>
+					<div class="col-xs-4">
+						<input class="form-control" type="text" id="playTime"
+							name="playTime" value="10"></input>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-8">
+						<label class="control-label" for="fakePoints">Points for
+							KMS for fake clients</label>
+					</div>
+					<div class="col-xs-4">
+						<input class="form-control" type="text" id="fakePoints"
+							name="fakePoints" value="200"></input>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-8">
+						<label class="control-label" for="fakeClientsPerInstance">Number
+							of fake clients per KMS instance</label>
+					</div>
+					<div class="col-xs-4">
+						<input class="form-control" type="text"
+							id="fakeClientsPerInstance" name="fakeClientsPerInstance"
+							value="20"></input>
 					</div>
 				</div>
 				<div class="row">

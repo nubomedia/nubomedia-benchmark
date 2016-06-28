@@ -17,6 +17,8 @@ package eu.nubomedia.benchmark;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.kurento.client.EventListener;
 import org.kurento.client.FaceOverlayFilter;
@@ -62,6 +64,8 @@ public class UserSession {
   private KurentoClient kurentoClient;
   private MediaPipeline mediaPipeline;
   private String sessionNumber;
+  private KurentoClient fakeKurentoClient;
+  private MediaPipeline fakeMediaPipeline;
 
   public UserSession(WebSocketSession wsSession, String sessionNumber, BenchmarkHandler handler) {
     this.wsSession = wsSession;
@@ -91,77 +95,54 @@ public class UserSession {
     webRtcEndpoint.gatherCandidates();
   }
 
-  public void initViewer(UserSession presenterSession, String sdpOffer, String filterId) {
+  public void initViewer(UserSession presenterSession, String sdpOffer, String filterId,
+      int fakePoints, int fakeClients, int timeBetweenClients) {
     mediaPipeline = presenterSession.getMediaPipeline();
     webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
+
     addOnIceCandidateListener();
 
     // Connectivity
+    Filter filter = null;
+    WebRtcEndpoint inputWebRtcEndpoint = presenterSession.getWebRtcEndpoint();
+
     switch (filterId) {
       case "encoder":
-        Filter filter = new GStreamerFilter.Builder(mediaPipeline, "capsfilter caps=video/x-raw")
+        filter = new GStreamerFilter.Builder(mediaPipeline, "capsfilter caps=video/x-raw")
             .withFilterType(FilterType.VIDEO).build();
-        presenterSession.getWebRtcEndpoint().connect(filter);
-        filter.connect(webRtcEndpoint);
-        log.info(
-            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> GStreamerFilter -> WebRtcEndpoint",
-            sessionNumber, wsSession.getId());
         break;
       case "face":
         filter = new FaceOverlayFilter.Builder(mediaPipeline).build();
-        presenterSession.getWebRtcEndpoint().connect(filter);
-        filter.connect(webRtcEndpoint);
-        log.info(
-            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> FaceOverlayFilter -> WebRtcEndpoint",
-            sessionNumber, wsSession.getId());
         break;
       case "image":
         filter = new ImageOverlayFilter.Builder(mediaPipeline).build();
-        presenterSession.getWebRtcEndpoint().connect(filter);
-        filter.connect(webRtcEndpoint);
-        log.info(
-            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> ImageOverlayFilter -> WebRtcEndpoint",
-            sessionNumber, wsSession.getId());
         break;
       case "zbar":
         filter = new ZBarFilter.Builder(mediaPipeline).build();
-        presenterSession.getWebRtcEndpoint().connect(filter);
-        filter.connect(webRtcEndpoint);
-        log.info(
-            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> ZBarFilter -> WebRtcEndpoint",
-            sessionNumber, wsSession.getId());
         break;
       case "plate":
         filter = new PlateDetectorFilter.Builder(mediaPipeline).build();
-        presenterSession.getWebRtcEndpoint().connect(filter);
-        filter.connect(webRtcEndpoint);
-        log.info(
-            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> PlateDetectorFilter -> WebRtcEndpoint",
-            sessionNumber, wsSession.getId());
         break;
       case "crowd":
         List<RegionOfInterest> rois = getDummyRois();
         filter = new CrowdDetectorFilter.Builder(mediaPipeline, rois).build();
-        presenterSession.getWebRtcEndpoint().connect(filter);
-        filter.connect(webRtcEndpoint);
-        log.info(
-            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> CrowdDetectorFilter -> WebRtcEndpoint",
-            sessionNumber, wsSession.getId());
         break;
       case "chroma":
         filter = new ChromaFilter.Builder(mediaPipeline, new WindowParam(0, 0, 640, 480)).build();
-        presenterSession.getWebRtcEndpoint().connect(filter);
-        filter.connect(webRtcEndpoint);
-        log.info(
-            "Pipeline [session number {}, WS session {}] WebRtcEndpoint -> ChromaFilter -> WebRtcEndpoint",
-            sessionNumber, wsSession.getId());
         break;
       case "none":
       default:
-        presenterSession.getWebRtcEndpoint().connect(webRtcEndpoint);
+        inputWebRtcEndpoint.connect(webRtcEndpoint);
         log.info("Pipeline [session number {}, WS session {}] WebRtcEndpoint -> WebRtcEndpoint",
             sessionNumber, wsSession.getId());
         break;
+    }
+
+    if (filter != null) {
+      inputWebRtcEndpoint.connect(filter);
+      filter.connect(webRtcEndpoint);
+      log.info("Pipeline [session number {}, WS session {}] WebRtcEndpoint -> {} -> WebRtcEndpoint",
+          sessionNumber, filter.getClass().getCanonicalName(), wsSession.getId());
     }
 
     String sdpAnswer = webRtcEndpoint.processOffer(sdpOffer);
@@ -172,6 +153,79 @@ public class UserSession {
 
     handler.sendMessage(wsSession, new TextMessage(response.toString()));
     webRtcEndpoint.gatherCandidates();
+
+    if (fakeClients > 0) {
+      addFakeClients(presenterSession, fakePoints, fakeClients, timeBetweenClients, filter,
+          inputWebRtcEndpoint);
+    }
+  }
+
+  private void addFakeClients(UserSession presenterSession, int fakePoints, int fakeClients,
+      int timeBetweenClients, final Filter filter, final WebRtcEndpoint inputWebRtcEndpoint) {
+
+    log.info("Adding {} fake clients (rate {} ms) ", fakeClients, timeBetweenClients);
+
+    if (fakeKurentoClient == null) {
+      log.info("Creating a new kurentoClient for fake clients (reserving {} points)", fakePoints);
+      Properties properties = new Properties();
+      properties.add("loadPoints", fakePoints);
+      fakeKurentoClient = KurentoClient.create(properties);
+      fakeMediaPipeline = fakeKurentoClient.createMediaPipeline();
+
+      presenterSession.setFakeKurentoClient(fakeKurentoClient);
+      presenterSession.setFakeMediaPipeline(fakeMediaPipeline);
+    } else {
+      log.info("Reusing a kurentoClient for fake clients previously created");
+    }
+
+    ExecutorService executor = Executors.newFixedThreadPool(fakeClients);
+    for (int i = 0; i < fakeClients; i++) {
+      executor.execute(new Runnable() {
+        @Override
+        public void run() {
+          addFakeClient(filter, inputWebRtcEndpoint);
+        }
+      });
+      try {
+        Thread.sleep(timeBetweenClients);
+      } catch (InterruptedException e) {
+        log.warn("InterruptedException in time between fake clients", e);
+      }
+    }
+  }
+
+  private void addFakeClient(Filter filter, WebRtcEndpoint inputWebRtc) {
+    final WebRtcEndpoint fakeOutputWebRtc = new WebRtcEndpoint.Builder(mediaPipeline).build();
+    final WebRtcEndpoint fakeBrowser = new WebRtcEndpoint.Builder(fakeMediaPipeline).build();
+
+    fakeOutputWebRtc.addOnIceCandidateListener(new EventListener<OnIceCandidateEvent>() {
+      @Override
+      public void onEvent(OnIceCandidateEvent event) {
+        fakeBrowser.addIceCandidate(event.getCandidate());
+      }
+    });
+
+    fakeBrowser.addOnIceCandidateListener(new EventListener<OnIceCandidateEvent>() {
+      @Override
+      public void onEvent(OnIceCandidateEvent event) {
+        fakeOutputWebRtc.addIceCandidate(event.getCandidate());
+      }
+    });
+
+    String sdpOffer = fakeBrowser.generateOffer();
+    String sdpAnswer = fakeOutputWebRtc.processOffer(sdpOffer);
+    fakeBrowser.processAnswer(sdpAnswer);
+
+    fakeOutputWebRtc.gatherCandidates();
+    fakeBrowser.gatherCandidates();
+
+    if (filter == null) {
+      inputWebRtc.connect(fakeOutputWebRtc);
+    } else {
+      inputWebRtc.connect(filter);
+      filter.connect(fakeOutputWebRtc);
+    }
+
   }
 
   public void addCandidate(JsonObject jsonCandidate) {
@@ -197,14 +251,25 @@ public class UserSession {
   }
 
   public void release() {
-    log.info("Releasing media pipeline");
     if (mediaPipeline != null) {
+      log.info("Releasing media pipeline (WS session {})", wsSession.getId());
       mediaPipeline.release();
     }
     mediaPipeline = null;
 
     log.info("Destroying kurentoClient (WS session {})", wsSession.getId());
     kurentoClient.destroy();
+
+    if (fakeMediaPipeline != null) {
+      log.info("Releasing fake media pipeline (WS session {})", wsSession.getId());
+      fakeMediaPipeline.release();
+    }
+    fakeMediaPipeline = null;
+
+    if (fakeKurentoClient != null) {
+      log.info("Destroying fake kurentoClient (WS session {})", wsSession.getId());
+      fakeKurentoClient.destroy();
+    }
   }
 
   public WebSocketSession getWebSocketSession() {
@@ -221,6 +286,14 @@ public class UserSession {
 
   public String getSessionNumber() {
     return sessionNumber;
+  }
+
+  public void setFakeKurentoClient(KurentoClient fakeKurentoClient) {
+    this.fakeKurentoClient = fakeKurentoClient;
+  }
+
+  public void setFakeMediaPipeline(MediaPipeline fakeMediaPipeline) {
+    this.fakeMediaPipeline = fakeMediaPipeline;
   }
 
   private List<RegionOfInterest> getDummyRois() {
@@ -243,7 +316,6 @@ public class UserSession {
     points.add(new RelativePoint(x, y));
 
     RegionOfInterestConfig config = new RegionOfInterestConfig();
-
     config.setFluidityLevelMin(10);
     config.setFluidityLevelMed(35);
     config.setFluidityLevelMax(65);
@@ -252,9 +324,7 @@ public class UserSession {
     config.setOccupancyLevelMed(35);
     config.setOccupancyLevelMax(65);
     config.setOccupancyNumFramesToEvent(5);
-
     config.setSendOpticalFlowEvent(false);
-
     config.setOpticalFlowNumFramesToEvent(3);
     config.setOpticalFlowNumFramesToReset(3);
     config.setOpticalFlowAngleOffset(0);
