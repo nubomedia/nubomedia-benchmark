@@ -61,13 +61,17 @@ public class BenchmarkHandler extends TextWebSocketHandler {
           presenter(wsSession, sessionNumber, sdpOffer, loadPoints);
           break;
         case "viewer":
-          String processing = jsonMessage.get("processing").getAsString();
           sdpOffer = jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString();
-          int fakePoints = jsonMessage.getAsJsonPrimitive("fakePoints").getAsInt();
+          String processing = jsonMessage.get("processing").getAsString();
           int fakeClients = jsonMessage.getAsJsonPrimitive("fakeClients").getAsInt();
           int timeBetweenClients = jsonMessage.getAsJsonPrimitive("timeBetweenClients").getAsInt();
+          boolean removeFakeClients =
+              jsonMessage.getAsJsonPrimitive("removeFakeClients").getAsBoolean();
+          int playTime = jsonMessage.getAsJsonPrimitive("playTime").getAsInt();
+          int fakePoints = jsonMessage.getAsJsonPrimitive("fakePoints").getAsInt();
+
           viewer(wsSession, sessionNumber, sdpOffer, processing, fakePoints, fakeClients,
-              timeBetweenClients);
+              timeBetweenClients, removeFakeClients, playTime);
           break;
         case "onIceCandidate":
           JsonObject candidate = jsonMessage.get("candidate").getAsJsonObject();
@@ -85,7 +89,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
       notEnoughResources(wsSession, sessionNumber);
 
     } catch (Throwable t) {
-      log.error("[Session number {} - WS session {}] Exception starting session", sessionNumber,
+      log.error("[Session number {} - WS session {}] Exception in handler", sessionNumber,
           wsSession.getId(), t);
       handleErrorResponse(wsSession, sessionNumber, t);
     }
@@ -110,7 +114,8 @@ public class BenchmarkHandler extends TextWebSocketHandler {
   }
 
   private synchronized void viewer(WebSocketSession wsSession, String sessionNumber,
-      String sdpOffer, String processing, int fakePoints, int fakeClients, int timeBetweenClients) {
+      String sdpOffer, String processing, int fakePoints, int fakeClients, int timeBetweenClients,
+      boolean removeFakeClients, int playTime) {
     String wsSessionId = wsSession.getId();
 
     if (presenters.containsKey(sessionNumber)) {
@@ -135,7 +140,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
         viewersPerPresenter.put(wsSessionId, viewerSession);
 
         viewerSession.initViewer(presenters.get(sessionNumber), sdpOffer, processing, fakePoints,
-            fakeClients, timeBetweenClients);
+            fakeClients, timeBetweenClients, removeFakeClients, playTime);
       }
 
     } else {
@@ -283,7 +288,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
   public void afterConnectionClosed(WebSocketSession wsSession, CloseStatus status)
       throws Exception {
     String wsSessionId = wsSession.getId();
-    String sessionNumber = "";
+    String sessionNumber = "-";
     UserSession userSession = findUserByWsSession(wsSession);
 
     if (userSession != null) {

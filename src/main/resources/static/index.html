@@ -51,7 +51,7 @@
 		<div class="page-header">
 			<h1>NUBOMEDIA Benchmark</h1>
 			<p>This is a benchmark application aimed to assess the
-				performance of the NUBOMEDIA PaaS. Depending of the configuration,
+				performance of NUBOMEDIA or Kurento. Depending of the configuration,
 				the media logic has different topologies (one-to-one or one-to-many)
 				and different media processing (none, filtering, encoding, etc).</p>
 		</div>
@@ -120,8 +120,18 @@
 				</div>
 				<div class="row">
 					<div class="col-xs-8">
+						<label class="control-label">Remove fake clients</label>
+					</div>
+					<div class="col-xs-4">
+						<input type="radio" name="removeFakeClients" value="true"
+							checked="checked">True <input type="radio"
+							name="removeFakeClients" value="false">False
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-8">
 						<label class="control-label" for="playTime">Time with all
-							clients together (seconds)</label>
+							fake clients together (seconds)</label>
 					</div>
 					<div class="col-xs-4">
 						<input class="form-control" type="text" id="playTime"

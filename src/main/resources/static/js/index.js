@@ -22,6 +22,10 @@ window.onload = function() {
 	console["debug"] = console.info;
 	video = document.getElementById('video');
 	disableStopButton();
+
+	$('input[type=radio][name=removeFakeClients]').change(function() {
+		$('#playTime').attr('disabled', this.value == 'false');
+	});
 }
 
 window.onbeforeunload = function() {
@@ -136,19 +140,23 @@ function onOfferViewer(error, offerSdp) {
 	console.info('Invoking SDP offer callback function ' + location.host);
 
 	var sessionNumber = document.getElementById('sessionNumber').value;
-	var fakeClients = document.getElementById('fakeClients').value;
-	var timeBetweenClients = document.getElementById('timeBetweenClients').value;
-	var fakePoints = document.getElementById('fakePoints').value;
 	var processing = document.getElementById('processing').value;
+	var fakeClients = document.getElementById('fakeClients').value;
+	var removeFakeClients = document.getElementsByName('removeFakeClients')[0].checked;
+	var timeBetweenClients = document.getElementById('timeBetweenClients').value;
+	var playTime = document.getElementById('playTime').value;
+	var fakePoints = document.getElementById('fakePoints').value;
 
 	var message = {
 		id : 'viewer',
 		sessionNumber : sessionNumber,
 		sdpOffer : offerSdp,
+		processing : processing,
 		fakeClients : fakeClients,
+		removeFakeClients : removeFakeClients,
 		timeBetweenClients : timeBetweenClients,
-		fakePoints : fakePoints,
-		processing : processing
+		playTime : playTime,
+		fakePoints : fakePoints
 	}
 	sendMessage(message);
 }

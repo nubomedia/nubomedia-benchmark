@@ -17,6 +17,7 @@ package eu.nubomedia.benchmark;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -99,7 +100,8 @@ public class UserSession {
   }
 
   public void initViewer(UserSession presenterSession, String sdpOffer, String filterId,
-      int fakePoints, int fakeClients, int timeBetweenClients) {
+      int fakePoints, int fakeClients, int timeBetweenClients, boolean removeFakeClients,
+      int playTime) {
 
     log.info("[Session number {} - WS session {}] Init viewer(s) with {} filtering", sessionNumber,
         wsSession.getId(), filterId);
@@ -124,7 +126,7 @@ public class UserSession {
 
     if (fakeClients > 0) {
       addFakeClients(presenterSession, fakePoints, fakeClients, timeBetweenClients, filterId,
-          inputWebRtcEndpoint);
+          inputWebRtcEndpoint, removeFakeClients, playTime);
     }
   }
 
@@ -177,7 +179,8 @@ public class UserSession {
 
   private void addFakeClients(final UserSession presenterSession, final int fakePoints,
       final int fakeClients, final int timeBetweenClients, final String filterId,
-      final WebRtcEndpoint inputWebRtcEndpoint) {
+      final WebRtcEndpoint inputWebRtcEndpoint, final boolean removeFakeClients,
+      final int playTime) {
     new Thread(new Runnable() {
       @Override
       public void run() {
@@ -199,22 +202,64 @@ public class UserSession {
               sessionNumber, wsSession.getId());
         }
 
+        final CountDownLatch latch = new CountDownLatch(fakeClients);
         ExecutorService executor = Executors.newFixedThreadPool(fakeClients);
         for (int i = 0; i < fakeClients; i++) {
+          waitMs(timeBetweenClients);
           executor.execute(new Runnable() {
             @Override
             public void run() {
-              addFakeClient(filterId, inputWebRtcEndpoint);
+              try {
+                addFakeClient(filterId, inputWebRtcEndpoint);
+              } finally {
+                latch.countDown();
+              }
             }
           });
-          try {
-            Thread.sleep(timeBetweenClients);
-          } catch (InterruptedException e) {
-            log.warn("InterruptedException in time between fake clients", e);
+        }
+
+        try {
+          latch.await();
+        } catch (InterruptedException e) {
+          log.warn("Exception waiting thread pool to be finished", e);
+        }
+        executor.shutdown();
+
+        if (removeFakeClients) {
+          log.info(
+              "[Session number {} - WS session {}] Waiting {} seconds with all fake clients connected",
+              sessionNumber, wsSession.getId(), playTime);
+          waitMs(playTime * 1000);
+          for (int i = 0; i < mediaElementsInFakeMediaPipeline.size() / 3; i++) {
+            if (i != 0) {
+              waitMs(timeBetweenClients);
+            }
+            log.info("[Session number {} - WS session {}] Releasing fake viewer {}", sessionNumber,
+                wsSession.getId(), i);
+            for (int j = 0; j < 3; j++) {
+              MediaElement mediaElement = mediaElementsInFakeMediaPipeline.get(3 * i + j);
+              if (mediaElement != null) {
+                log.debug("[Session number {} - WS session {}] Releasing {}", sessionNumber,
+                    wsSession.getId(), mediaElement);
+                mediaElement.release();
+                mediaElement = null;
+              }
+            }
           }
+          mediaElementsInFakeMediaPipeline.clear();
+          releaseFakeMediaPipeline();
         }
       }
     }).start();
+  }
+
+  private void waitMs(int waitTime) {
+    try {
+      log.debug("Waiting {} ms", waitTime);
+      Thread.sleep(waitTime);
+    } catch (InterruptedException e) {
+      log.warn("Exception waiting {} ms", waitTime);
+    }
   }
 
   private void addFakeClient(String filterId, WebRtcEndpoint inputWebRtc) {
@@ -223,6 +268,8 @@ public class UserSession {
 
     final WebRtcEndpoint fakeOutputWebRtc = new WebRtcEndpoint.Builder(mediaPipeline).build();
     final WebRtcEndpoint fakeBrowser = new WebRtcEndpoint.Builder(fakeMediaPipeline).build();
+
+    Filter filter = connectMediaElements(inputWebRtc, filterId, fakeOutputWebRtc);
 
     fakeOutputWebRtc.addOnIceCandidateListener(new EventListener<OnIceCandidateEvent>() {
       @Override
@@ -245,7 +292,6 @@ public class UserSession {
     fakeOutputWebRtc.gatherCandidates();
     fakeBrowser.gatherCandidates();
 
-    Filter filter = connectMediaElements(inputWebRtc, filterId, fakeOutputWebRtc);
     mediaElementsInFakeMediaPipeline.add(filter);
     mediaElementsInFakeMediaPipeline.add(fakeOutputWebRtc);
     mediaElementsInFakeMediaPipeline.add(fakeBrowser);
@@ -296,6 +342,10 @@ public class UserSession {
     }
     mediaElementsInFakeMediaPipeline.clear();
 
+    releaseFakeMediaPipeline();
+  }
+
+  private void releaseFakeMediaPipeline() {
     if (fakeMediaPipeline != null) {
       log.debug("[Session number {} - WS session {}] Releasing fake media pipeline", sessionNumber,
           wsSession.getId());
@@ -309,7 +359,6 @@ public class UserSession {
       fakeKurentoClient.destroy();
       fakeKurentoClient = null;
     }
-
   }
 
   public void releasePresenter() {
