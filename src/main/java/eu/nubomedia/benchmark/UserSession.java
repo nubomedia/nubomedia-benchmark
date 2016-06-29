@@ -28,6 +28,7 @@ import org.kurento.client.GStreamerFilter;
 import org.kurento.client.IceCandidate;
 import org.kurento.client.ImageOverlayFilter;
 import org.kurento.client.KurentoClient;
+import org.kurento.client.MediaElement;
 import org.kurento.client.MediaPipeline;
 import org.kurento.client.OnIceCandidateEvent;
 import org.kurento.client.Properties;
@@ -103,9 +104,26 @@ public class UserSession {
     addOnIceCandidateListener();
 
     // Connectivity
-    Filter filter = null;
     WebRtcEndpoint inputWebRtcEndpoint = presenterSession.getWebRtcEndpoint();
+    connectMediaElements(inputWebRtcEndpoint, filterId, webRtcEndpoint);
 
+    String sdpAnswer = webRtcEndpoint.processOffer(sdpOffer);
+    JsonObject response = new JsonObject();
+    response.addProperty("id", "viewerResponse");
+    response.addProperty("response", "accepted");
+    response.addProperty("sdpAnswer", sdpAnswer);
+
+    handler.sendMessage(wsSession, new TextMessage(response.toString()));
+    webRtcEndpoint.gatherCandidates();
+
+    if (fakeClients > 0) {
+      addFakeClients(presenterSession, fakePoints, fakeClients, timeBetweenClients, filterId,
+          inputWebRtcEndpoint);
+    }
+  }
+
+  private void connectMediaElements(MediaElement input, String filterId, MediaElement output) {
+    Filter filter = null;
     switch (filterId) {
       case "encoder":
         filter = new GStreamerFilter.Builder(mediaPipeline, "capsfilter caps=video/x-raw")
@@ -132,36 +150,22 @@ public class UserSession {
         break;
       case "none":
       default:
-        inputWebRtcEndpoint.connect(webRtcEndpoint);
+        input.connect(output);
         log.info("Pipeline [session number {}, WS session {}] WebRtcEndpoint -> WebRtcEndpoint",
             sessionNumber, wsSession.getId());
         break;
     }
 
     if (filter != null) {
-      inputWebRtcEndpoint.connect(filter);
-      filter.connect(webRtcEndpoint);
+      input.connect(filter);
+      filter.connect(output);
       log.info("Pipeline [session number {}, WS session {}] WebRtcEndpoint -> {} -> WebRtcEndpoint",
           sessionNumber, filter.getClass().getCanonicalName(), wsSession.getId());
-    }
-
-    String sdpAnswer = webRtcEndpoint.processOffer(sdpOffer);
-    JsonObject response = new JsonObject();
-    response.addProperty("id", "viewerResponse");
-    response.addProperty("response", "accepted");
-    response.addProperty("sdpAnswer", sdpAnswer);
-
-    handler.sendMessage(wsSession, new TextMessage(response.toString()));
-    webRtcEndpoint.gatherCandidates();
-
-    if (fakeClients > 0) {
-      addFakeClients(presenterSession, fakePoints, fakeClients, timeBetweenClients, filter,
-          inputWebRtcEndpoint);
     }
   }
 
   private void addFakeClients(UserSession presenterSession, int fakePoints, int fakeClients,
-      int timeBetweenClients, final Filter filter, final WebRtcEndpoint inputWebRtcEndpoint) {
+      int timeBetweenClients, final String filterId, final WebRtcEndpoint inputWebRtcEndpoint) {
 
     log.info("Adding {} fake clients (rate {} ms) ", fakeClients, timeBetweenClients);
 
@@ -183,7 +187,7 @@ public class UserSession {
       executor.execute(new Runnable() {
         @Override
         public void run() {
-          addFakeClient(filter, inputWebRtcEndpoint);
+          addFakeClient(filterId, inputWebRtcEndpoint);
         }
       });
       try {
@@ -194,7 +198,7 @@ public class UserSession {
     }
   }
 
-  private void addFakeClient(Filter filter, WebRtcEndpoint inputWebRtc) {
+  private void addFakeClient(String filterId, WebRtcEndpoint inputWebRtc) {
     final WebRtcEndpoint fakeOutputWebRtc = new WebRtcEndpoint.Builder(mediaPipeline).build();
     final WebRtcEndpoint fakeBrowser = new WebRtcEndpoint.Builder(fakeMediaPipeline).build();
 
@@ -219,13 +223,7 @@ public class UserSession {
     fakeOutputWebRtc.gatherCandidates();
     fakeBrowser.gatherCandidates();
 
-    if (filter == null) {
-      inputWebRtc.connect(fakeOutputWebRtc);
-    } else {
-      inputWebRtc.connect(filter);
-      filter.connect(fakeOutputWebRtc);
-    }
-
+    connectMediaElements(inputWebRtc, filterId, fakeOutputWebRtc);
   }
 
   public void addCandidate(JsonObject jsonCandidate) {
