@@ -67,6 +67,8 @@ public class UserSession {
   private String sessionNumber;
   private KurentoClient fakeKurentoClient;
   private MediaPipeline fakeMediaPipeline;
+  private Filter filter;
+  private List<MediaElement> mediaElementsInFakeMediaPipeline = new ArrayList<>();
 
   public UserSession(WebSocketSession wsSession, String sessionNumber, BenchmarkHandler handler) {
     this.wsSession = wsSession;
@@ -99,8 +101,8 @@ public class UserSession {
   public void initViewer(UserSession presenterSession, String sdpOffer, String filterId,
       int fakePoints, int fakeClients, int timeBetweenClients) {
 
-    log.info("[Session number {} - WS session {}] Init viewer(s) with '{}' filtering",
-        sessionNumber, wsSession.getId(), filterId);
+    log.info("[Session number {} - WS session {}] Init viewer(s) with {} filtering", sessionNumber,
+        wsSession.getId(), filterId);
 
     mediaPipeline = presenterSession.getMediaPipeline();
     webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
@@ -109,7 +111,7 @@ public class UserSession {
 
     // Connectivity
     WebRtcEndpoint inputWebRtcEndpoint = presenterSession.getWebRtcEndpoint();
-    connectMediaElements(inputWebRtcEndpoint, filterId, webRtcEndpoint);
+    filter = connectMediaElements(inputWebRtcEndpoint, filterId, webRtcEndpoint);
 
     String sdpAnswer = webRtcEndpoint.processOffer(sdpOffer);
     JsonObject response = new JsonObject();
@@ -126,33 +128,33 @@ public class UserSession {
     }
   }
 
-  private void connectMediaElements(MediaElement input, String filterId, MediaElement output) {
+  private Filter connectMediaElements(MediaElement input, String filterId, MediaElement output) {
     Filter filter = null;
     switch (filterId) {
-      case "encoder":
+      case "Encoder":
         filter = new GStreamerFilter.Builder(mediaPipeline, "capsfilter caps=video/x-raw")
             .withFilterType(FilterType.VIDEO).build();
         break;
-      case "face":
+      case "FaceOverlayFilter":
         filter = new FaceOverlayFilter.Builder(mediaPipeline).build();
         break;
-      case "image":
+      case "ImageOverlayFilter":
         filter = new ImageOverlayFilter.Builder(mediaPipeline).build();
         break;
-      case "zbar":
+      case "ZBarFilter":
         filter = new ZBarFilter.Builder(mediaPipeline).build();
         break;
-      case "plate":
+      case "PlateDetectorFilter":
         filter = new PlateDetectorFilter.Builder(mediaPipeline).build();
         break;
-      case "crowd":
+      case "CrowdDetectorFilter":
         List<RegionOfInterest> rois = getDummyRois();
         filter = new CrowdDetectorFilter.Builder(mediaPipeline, rois).build();
         break;
-      case "chroma":
+      case "ChromaFilter":
         filter = new ChromaFilter.Builder(mediaPipeline, new WindowParam(0, 0, 640, 480)).build();
         break;
-      case "none":
+      case "None":
       default:
         input.connect(output);
         log.info("[Session number {} - WS session {}] Pipeline: WebRtcEndpoint -> WebRtcEndpoint",
@@ -169,6 +171,8 @@ public class UserSession {
           "[Session number {} - WS session {}] Pipeline: WebRtcEndpoint -> {} -> WebRtcEndpoint",
           sessionNumber, wsSession.getId(), filterName);
     }
+
+    return filter;
   }
 
   private void addFakeClients(final UserSession presenterSession, final int fakePoints,
@@ -189,8 +193,6 @@ public class UserSession {
           fakeKurentoClient = KurentoClient.create(properties);
           fakeMediaPipeline = fakeKurentoClient.createMediaPipeline();
 
-          presenterSession.setFakeKurentoClient(fakeKurentoClient);
-          presenterSession.setFakeMediaPipeline(fakeMediaPipeline);
         } else {
           log.info(
               "[Session number {} - WS session {}] Reusing a kurentoClient for fake clients previously created",
@@ -216,7 +218,7 @@ public class UserSession {
   }
 
   private void addFakeClient(String filterId, WebRtcEndpoint inputWebRtc) {
-    log.info("[Session number {} - WS session {}] Adding fake client with '{}' filtering",
+    log.info("[Session number {} - WS session {}] Adding fake client with {} filtering",
         sessionNumber, wsSession.getId(), filterId);
 
     final WebRtcEndpoint fakeOutputWebRtc = new WebRtcEndpoint.Builder(mediaPipeline).build();
@@ -243,7 +245,10 @@ public class UserSession {
     fakeOutputWebRtc.gatherCandidates();
     fakeBrowser.gatherCandidates();
 
-    connectMediaElements(inputWebRtc, filterId, fakeOutputWebRtc);
+    Filter filter = connectMediaElements(inputWebRtc, filterId, fakeOutputWebRtc);
+    mediaElementsInFakeMediaPipeline.add(filter);
+    mediaElementsInFakeMediaPipeline.add(fakeOutputWebRtc);
+    mediaElementsInFakeMediaPipeline.add(fakeBrowser);
   }
 
   public void addCandidate(JsonObject jsonCandidate) {
@@ -264,33 +269,65 @@ public class UserSession {
     });
   }
 
-  public void releaseWebRtcEndpoint() {
-    webRtcEndpoint.release();
-  }
-
-  public void release() {
-    if (mediaPipeline != null) {
-      log.info("[Session number {} - WS session {}] Releasing media pipeline", sessionNumber,
-          wsSession.getId());
-      mediaPipeline.release();
-    }
-    mediaPipeline = null;
-
-    log.info("[Session number {} - WS session {}] Destroying kurentoClient", sessionNumber,
+  public void releaseViewer() {
+    log.info("[Session number {} - WS session {}] Releasing viewer", sessionNumber,
         wsSession.getId());
-    kurentoClient.destroy();
+
+    if (filter != null) {
+      log.debug("[Session number {} - WS session {}] Releasing filter", sessionNumber,
+          wsSession.getId());
+      filter.release();
+      filter = null;
+    }
+
+    if (webRtcEndpoint != null) {
+      log.debug("[Session number {} - WS session {}] Releasing WebRtcEndpoint", sessionNumber,
+          wsSession.getId());
+      webRtcEndpoint.release();
+      webRtcEndpoint = null;
+    }
+
+    for (MediaElement mediaElement : mediaElementsInFakeMediaPipeline) {
+      log.debug(
+          "[Session number {} - WS session {}] Releasing media element {} in fake media pipeline",
+          sessionNumber, wsSession.getId(), mediaElement);
+      mediaElement.release();
+      mediaElement = null;
+    }
+    mediaElementsInFakeMediaPipeline.clear();
 
     if (fakeMediaPipeline != null) {
-      log.info("[Session number {} - WS session {}] Releasing fake media pipeline", sessionNumber,
+      log.debug("[Session number {} - WS session {}] Releasing fake media pipeline", sessionNumber,
           wsSession.getId());
       fakeMediaPipeline.release();
+      fakeMediaPipeline = null;
     }
-    fakeMediaPipeline = null;
 
     if (fakeKurentoClient != null) {
-      log.info("[Session number {} - WS session {}] Destroying fake kurentoClient", sessionNumber,
+      log.debug("[Session number {} - WS session {}] Destroying fake kurentoClient", sessionNumber,
           wsSession.getId());
       fakeKurentoClient.destroy();
+      fakeKurentoClient = null;
+    }
+
+  }
+
+  public void releasePresenter() {
+    log.info("[Session number {} - WS session {}] Releasing presenter", sessionNumber,
+        wsSession.getId());
+
+    if (mediaPipeline != null) {
+      log.debug("[Session number {} - WS session {}] Releasing media pipeline", sessionNumber,
+          wsSession.getId());
+      mediaPipeline.release();
+      mediaPipeline = null;
+    }
+
+    if (kurentoClient != null) {
+      log.debug("[Session number {} - WS session {}] Destroying kurentoClient", sessionNumber,
+          wsSession.getId());
+      kurentoClient.destroy();
+      kurentoClient = null;
     }
   }
 
@@ -308,14 +345,6 @@ public class UserSession {
 
   public String getSessionNumber() {
     return sessionNumber;
-  }
-
-  public void setFakeKurentoClient(KurentoClient fakeKurentoClient) {
-    this.fakeKurentoClient = fakeKurentoClient;
-  }
-
-  public void setFakeMediaPipeline(MediaPipeline fakeMediaPipeline) {
-    this.fakeMediaPipeline = fakeMediaPipeline;
   }
 
   private List<RegionOfInterest> getDummyRois() {

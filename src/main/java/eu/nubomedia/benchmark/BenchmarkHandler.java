@@ -156,11 +156,10 @@ public class BenchmarkHandler extends TextWebSocketHandler {
 
     if (presenters.containsKey(sessionNumber) && presenters.get(sessionNumber).getWebSocketSession()
         .getId().equals(userSession.getWebSocketSession().getId())) {
-      // 1. Stop arrive from presenter
+      // Case 1. Stop arrive from presenter
       log.info("[Session number {} - WS session {}] Releasing presenter", sessionNumber,
           wsSessionId);
 
-      // Send stopCommunication to all viewers
       if (viewers.containsKey(sessionNumber)) {
         viewersPerPresenter = viewers.get(sessionNumber);
         logViewers(sessionNumber, wsSessionId, viewersPerPresenter);
@@ -170,13 +169,14 @@ public class BenchmarkHandler extends TextWebSocketHandler {
               "[Session number {} - WS session {}] Sending stopCommunication message to viewer",
               sessionNumber, viewer.getWebSocketSession().getId());
 
+          // Send stopCommunication to viewer
           JsonObject response = new JsonObject();
           response.addProperty("id", "stopCommunication");
           sendMessage(viewer.getWebSocketSession(), sessionNumber,
               new TextMessage(response.toString()));
 
-          log.info("[Session number {} - WS session {}] Removing viewer", sessionNumber,
-              viewer.getWebSocketSession().getId());
+          // Release viewer
+          viewersPerPresenter.get(viewer.getWebSocketSession().getId()).releaseViewer();
           viewersPerPresenter.remove(viewer.getWebSocketSession().getId());
         }
         // Remove viewer session from map
@@ -184,22 +184,17 @@ public class BenchmarkHandler extends TextWebSocketHandler {
       }
 
       // Release media pipeline and kurentoClient of presenter session
-      presenters.get(sessionNumber).release();
+      presenters.get(sessionNumber).releasePresenter();
 
       // Remove presenter session from map
       presenters.remove(sessionNumber);
 
     } else if (viewers.containsKey(sessionNumber)
         && viewers.get(sessionNumber).containsKey(wsSessionId)) {
-      // 2. Stop arrive from presenter
+      // Case 2. Stop arrive from presenter
       viewersPerPresenter = viewers.get(sessionNumber);
       logViewers(sessionNumber, wsSessionId, viewersPerPresenter);
-
-      log.info("[Session number {} - WS session {}] Releasing WebRtcEndpoint ", sessionNumber,
-          wsSessionId);
-      viewersPerPresenter.get(wsSessionId).releaseWebRtcEndpoint();
-
-      log.info("[Session number {} - WS session {}] Removing viewer", sessionNumber, wsSessionId);
+      viewersPerPresenter.get(wsSessionId).releaseViewer();
       viewersPerPresenter.remove(wsSessionId);
     }
 
@@ -209,7 +204,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
   private void logViewers(String sessionNumber, String wsSessionId,
       Map<String, UserSession> viewers) {
     if (viewers != null) {
-      log.info("[Session number {} - WS session {}] There are {} viewers at this moment",
+      log.info("[Session number {} - WS session {}] There are {} real viewer(s) at this moment",
           sessionNumber, wsSessionId, viewers.size());
     }
   }
@@ -288,12 +283,15 @@ public class BenchmarkHandler extends TextWebSocketHandler {
   public void afterConnectionClosed(WebSocketSession wsSession, CloseStatus status)
       throws Exception {
     String wsSessionId = wsSession.getId();
-    log.info("Closed connection of WS sessionId {}", wsSessionId);
-
+    String sessionNumber = "";
     UserSession userSession = findUserByWsSession(wsSession);
+
     if (userSession != null) {
-      stop(wsSession, userSession.getSessionNumber());
+      sessionNumber = userSession.getSessionNumber();
+      stop(wsSession, sessionNumber);
     }
+    log.info("[Session number {} - WS session {}] WS connection closed", sessionNumber,
+        wsSessionId);
   }
 
 }

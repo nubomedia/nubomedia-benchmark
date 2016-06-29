@@ -52,8 +52,8 @@
 			<h1>NUBOMEDIA Benchmark</h1>
 			<p>This is a benchmark application aimed to assess the
 				performance of the NUBOMEDIA PaaS. Depending of the configuration,
-				the media logic has different topologies (one-to-one, one-to-many)
-				and different media processing (none, filtering, encoding).</p>
+				the media logic has different topologies (one-to-one or one-to-many)
+				and different media processing (none, filtering, encoding, etc).</p>
 		</div>
 		<div class="row">
 			<div class="col-xs-5">
@@ -84,15 +84,15 @@
 					</div>
 					<div class="col-xs-4">
 						<select class="form-control" name="processing" id="processing">
-							<option value="none">None</option>
-							<option value="encoder">Encoder</option>
-							<option value="face">FaceOverlayFilter</option>
-							<option value="image">ImageOverlayFilter</option>
-							<option value="zbar">ZBarFilter</option>
-							<option value="plate">PlateDetectorFilter</option>
-							<option value="crowd">CrowdDetectorFilter</option>
-							<option value="chroma">ChromaFilter</option>
-							<option value="plate">PlateDetectorFilter</option>
+							<option value="None">None</option>
+							<option value="Encoder">Encoder</option>
+							<option value="FaceOverlayFilter">FaceOverlayFilter</option>
+							<option value="ImageOverlayFilter">ImageOverlayFilter</option>
+							<option value="ZBarFilter">ZBarFilter</option>
+							<option value="PlateDetectorFilter">PlateDetectorFilter</option>
+							<option value="CrowdDetectorFilter">CrowdDetectorFilter</option>
+							<option value="ChromaFilter">ChromaFilter</option>
+							<option value="PlateDetectorFilter">PlateDetectorFilter</option>
 						</select>
 					</div>
 					<hr>
@@ -130,8 +130,8 @@
 				</div>
 				<div class="row">
 					<div class="col-xs-8">
-						<label class="control-label" for="fakePoints">Points for
-							KMS for fake clients</label>
+						<label class="control-label" for="fakePoints">KMS points
+							for fake clients</label>
 					</div>
 					<div class="col-xs-4">
 						<input class="form-control" type="text" id="fakePoints"
@@ -155,10 +155,7 @@
 					</div>
 				</div>
 				<div class="row">
-					<div class="col-xs-4">
-						<b>Actions</b>
-					</div>
-					<div class="col-xs-8 text-right">
+					<div class="col-xs-12 text-right">
 						<a id="presenter" href="#" class="btn btn-success btn-responsive"><span
 							class="glyphicon glyphicon-play"></span> Presenter </a> <a
 							id="viewer" href="#" class="btn btn-primary btn-responsive"><span
