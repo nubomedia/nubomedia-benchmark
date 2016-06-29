@@ -51,7 +51,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
           new GsonBuilder().create().fromJson(message.getPayload(), JsonObject.class);
 
       sessionNumber = jsonMessage.get("sessionNumber").getAsString();
-      log.info("Incoming message from session number {} and WS sessionId {} : {}", sessionNumber,
+      log.debug("[Session number {} - WS session {}] Incoming message {}", sessionNumber,
           wsSession.getId(), jsonMessage);
 
       switch (jsonMessage.get("id").getAsString()) {
@@ -80,11 +80,13 @@ public class BenchmarkHandler extends TextWebSocketHandler {
       }
 
     } catch (NotEnoughResourcesException e) {
-      log.warn("Not enough resources", e);
+      log.warn("[Session number {} - WS session {}] Not enough resources", sessionNumber,
+          wsSession.getId(), e);
       notEnoughResources(wsSession, sessionNumber);
 
     } catch (Throwable t) {
-      log.error("Exception starting session", t);
+      log.error("[Session number {} - WS session {}] Exception starting session", sessionNumber,
+          wsSession.getId(), t);
       handleErrorResponse(wsSession, sessionNumber, t);
     }
   }
@@ -97,7 +99,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
       response.addProperty("response", "rejected");
       response.addProperty("message", "Another user is currently acting as sender for session "
           + sessionNumber + ". Chose another session number ot try again later ...");
-      sendMessage(wsSession, new TextMessage(response.toString()));
+      sendMessage(wsSession, sessionNumber, new TextMessage(response.toString()));
 
     } else {
       UserSession presenterSession = new UserSession(wsSession, sessionNumber, this);
@@ -127,7 +129,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
         response.addProperty("response", "rejected");
         response.addProperty("message", "You are already viewing in session number "
             + viewersPerPresenter + ". Use a different browser/tab to add additional viewers.");
-        sendMessage(wsSession, new TextMessage(response.toString()));
+        sendMessage(wsSession, sessionNumber, new TextMessage(response.toString()));
       } else {
         UserSession viewerSession = new UserSession(wsSession, sessionNumber, this);
         viewersPerPresenter.put(wsSessionId, viewerSession);
@@ -142,37 +144,40 @@ public class BenchmarkHandler extends TextWebSocketHandler {
       response.addProperty("response", "rejected");
       response.addProperty("message", "No active presenter for sesssion number " + sessionNumber
           + " now. Become sender or try again later ...");
-      sendMessage(wsSession, new TextMessage(response.toString()));
+      sendMessage(wsSession, sessionNumber, new TextMessage(response.toString()));
     }
   }
 
   private synchronized void stop(WebSocketSession wsSession, String sessionNumber) {
     String wsSessionId = wsSession.getId();
-
-    log.info("Stopping session number {} with WS sessionId {}", sessionNumber, wsSessionId);
-
+    Map<String, UserSession> viewersPerPresenter = null;
     UserSession userSession = findUserByWsSession(wsSession);
+    log.info("[Session number {} - WS session {}] Stopping session", sessionNumber, wsSessionId);
 
     if (presenters.containsKey(sessionNumber) && presenters.get(sessionNumber).getWebSocketSession()
         .getId().equals(userSession.getWebSocketSession().getId())) {
       // 1. Stop arrive from presenter
-      log.info("Releasing presenter of session number {} (WS sessionId {})", sessionNumber,
+      log.info("[Session number {} - WS session {}] Releasing presenter", sessionNumber,
           wsSessionId);
 
       // Send stopCommunication to all viewers
       if (viewers.containsKey(sessionNumber)) {
-        Map<String, UserSession> viewersPerPresenter = viewers.get(sessionNumber);
-        log.info("There are {} viewers at this moment ({}) in session number {}",
-            viewersPerPresenter.size(), viewersPerPresenter, sessionNumber);
+        viewersPerPresenter = viewers.get(sessionNumber);
+        logViewers(sessionNumber, wsSessionId, viewersPerPresenter);
 
         for (UserSession viewer : viewersPerPresenter.values()) {
           log.info(
-              "Sending stopCommunication message to viewer (of session number {}) with WS sessionId {}",
+              "[Session number {} - WS session {}] Sending stopCommunication message to viewer",
               sessionNumber, viewer.getWebSocketSession().getId());
 
           JsonObject response = new JsonObject();
           response.addProperty("id", "stopCommunication");
-          sendMessage(viewer.getWebSocketSession(), new TextMessage(response.toString()));
+          sendMessage(viewer.getWebSocketSession(), sessionNumber,
+              new TextMessage(response.toString()));
+
+          log.info("[Session number {} - WS session {}] Removing viewer", sessionNumber,
+              viewer.getWebSocketSession().getId());
+          viewersPerPresenter.remove(viewer.getWebSocketSession().getId());
         }
         // Remove viewer session from map
         viewers.remove(sessionNumber);
@@ -187,19 +192,25 @@ public class BenchmarkHandler extends TextWebSocketHandler {
     } else if (viewers.containsKey(sessionNumber)
         && viewers.get(sessionNumber).containsKey(wsSessionId)) {
       // 2. Stop arrive from presenter
-      Map<String, UserSession> viewersPerPresenter = viewers.get(sessionNumber);
-      log.info("There are {} viewers at this moment ({}) in session number {}",
-          viewersPerPresenter.size(), viewersPerPresenter, sessionNumber);
+      viewersPerPresenter = viewers.get(sessionNumber);
+      logViewers(sessionNumber, wsSessionId, viewersPerPresenter);
 
-      log.info("Releasing WebRtcEndpoing of viewer with WS sessionId {} in session number {}",
-          wsSessionId, sessionNumber);
+      log.info("[Session number {} - WS session {}] Releasing WebRtcEndpoint ", sessionNumber,
+          wsSessionId);
       viewersPerPresenter.get(wsSessionId).releaseWebRtcEndpoint();
 
-      log.info("Removing viewer WS sessionId {}", wsSessionId);
+      log.info("[Session number {} - WS session {}] Removing viewer", sessionNumber, wsSessionId);
       viewersPerPresenter.remove(wsSessionId);
+    }
 
-      log.info("There are {} viewers at this moment ({}) in session number {}",
-          viewersPerPresenter.size(), viewersPerPresenter, sessionNumber);
+    logViewers(sessionNumber, wsSessionId, viewersPerPresenter);
+  }
+
+  private void logViewers(String sessionNumber, String wsSessionId,
+      Map<String, UserSession> viewers) {
+    if (viewers != null) {
+      log.info("[Session number {} - WS session {}] There are {} viewers at this moment",
+          sessionNumber, wsSessionId, viewers.size());
     }
   }
 
@@ -210,8 +221,8 @@ public class BenchmarkHandler extends TextWebSocketHandler {
     if (userSession != null) {
       userSession.addCandidate(candidate);
     } else {
-      log.warn("ICE candidate not valid (WS sessionID {}) (session Number {}) (ICE candidate {})",
-          wsSessionId, sessionNumber, candidate);
+      log.warn("[Session number {} - WS session {}] ICE candidate not valid: {}", sessionNumber,
+          wsSessionId, candidate);
     }
   }
 
@@ -222,8 +233,9 @@ public class BenchmarkHandler extends TextWebSocketHandler {
     response.addProperty("id", "error");
     response.addProperty("response", "rejected");
     response.addProperty("message", throwable.getMessage());
-    sendMessage(wsSession, new TextMessage(response.toString()));
-    log.error(throwable.getMessage(), throwable);
+    sendMessage(wsSession, sessionNumber, new TextMessage(response.toString()));
+    log.error("[Session number {} - WS session {}] Error handling message", sessionNumber,
+        wsSession.getId(), throwable);
 
     // Release media session
     stop(wsSession, sessionNumber);
@@ -233,7 +245,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
     // Send notEnoughResources message to client
     JsonObject response = new JsonObject();
     response.addProperty("id", "notEnoughResources");
-    sendMessage(wsSession, new TextMessage(response.toString()));
+    sendMessage(wsSession, sessionNumber, new TextMessage(response.toString()));
 
     // Release media session
     stop(wsSession, sessionNumber);
@@ -259,13 +271,16 @@ public class BenchmarkHandler extends TextWebSocketHandler {
     return null;
   }
 
-  public synchronized void sendMessage(WebSocketSession session, TextMessage message) {
+  public synchronized void sendMessage(WebSocketSession session, String sessionNumber,
+      TextMessage message) {
     try {
-      log.info("Sending message {} in session {}", message.getPayload(), session.getId());
+      log.debug("[Session number {} - WS session {}] Sending message {} in session {}",
+          sessionNumber, session.getId(), message.getPayload());
       session.sendMessage(message);
 
     } catch (IOException e) {
-      log.error("Exception sending message", e);
+      log.error("[Session number {} - WS session {}] Exception sending message", sessionNumber,
+          session.getId(), e);
     }
   }
 

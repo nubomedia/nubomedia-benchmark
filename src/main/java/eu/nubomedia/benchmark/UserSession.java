@@ -75,7 +75,7 @@ public class UserSession {
   }
 
   public void initPresenter(String sdpOffer, int loadPoints) {
-    log.info("Init presenter [session number {} WS session {}] with {} points", sessionNumber,
+    log.info("[Session number {} - WS session {}] Init presenter with {} points", sessionNumber,
         wsSession.getId(), loadPoints);
 
     Properties properties = new Properties();
@@ -92,12 +92,16 @@ public class UserSession {
     response.addProperty("response", "accepted");
     response.addProperty("sdpAnswer", sdpAnswer);
 
-    handler.sendMessage(wsSession, new TextMessage(response.toString()));
+    handler.sendMessage(wsSession, sessionNumber, new TextMessage(response.toString()));
     webRtcEndpoint.gatherCandidates();
   }
 
   public void initViewer(UserSession presenterSession, String sdpOffer, String filterId,
       int fakePoints, int fakeClients, int timeBetweenClients) {
+
+    log.info("[Session number {} - WS session {}] Init viewer(s) with '{}' filtering",
+        sessionNumber, wsSession.getId(), filterId);
+
     mediaPipeline = presenterSession.getMediaPipeline();
     webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
 
@@ -113,7 +117,7 @@ public class UserSession {
     response.addProperty("response", "accepted");
     response.addProperty("sdpAnswer", sdpAnswer);
 
-    handler.sendMessage(wsSession, new TextMessage(response.toString()));
+    handler.sendMessage(wsSession, sessionNumber, new TextMessage(response.toString()));
     webRtcEndpoint.gatherCandidates();
 
     if (fakeClients > 0) {
@@ -151,7 +155,7 @@ public class UserSession {
       case "none":
       default:
         input.connect(output);
-        log.info("Pipeline [session number {}, WS session {}] WebRtcEndpoint -> WebRtcEndpoint",
+        log.info("[Session number {} - WS session {}] Pipeline: WebRtcEndpoint -> WebRtcEndpoint",
             sessionNumber, wsSession.getId());
         break;
     }
@@ -159,46 +163,62 @@ public class UserSession {
     if (filter != null) {
       input.connect(filter);
       filter.connect(output);
-      log.info("Pipeline [session number {}, WS session {}] WebRtcEndpoint -> {} -> WebRtcEndpoint",
-          sessionNumber, filter.getClass().getCanonicalName(), wsSession.getId());
+      int iFilter = filter.getName().lastIndexOf(".");
+      String filterName = iFilter != -1 ? filter.getName().substring(iFilter + 1) : filterId;
+      log.info(
+          "[Session number {} - WS session {}] Pipeline: WebRtcEndpoint -> {} -> WebRtcEndpoint",
+          sessionNumber, wsSession.getId(), filterName);
     }
   }
 
-  private void addFakeClients(UserSession presenterSession, int fakePoints, int fakeClients,
-      int timeBetweenClients, final String filterId, final WebRtcEndpoint inputWebRtcEndpoint) {
+  private void addFakeClients(final UserSession presenterSession, final int fakePoints,
+      final int fakeClients, final int timeBetweenClients, final String filterId,
+      final WebRtcEndpoint inputWebRtcEndpoint) {
+    new Thread(new Runnable() {
+      @Override
+      public void run() {
+        log.info("[Session number {} - WS session {}] Adding {} fake clients (rate {} ms) ",
+            sessionNumber, wsSession.getId(), fakeClients, timeBetweenClients);
 
-    log.info("Adding {} fake clients (rate {} ms) ", fakeClients, timeBetweenClients);
+        if (fakeKurentoClient == null) {
+          log.info(
+              "[Session number {} - WS session {}] Creating a new kurentoClient for fake clients (reserving {} points)",
+              sessionNumber, wsSession.getId(), fakePoints);
+          Properties properties = new Properties();
+          properties.add("loadPoints", fakePoints);
+          fakeKurentoClient = KurentoClient.create(properties);
+          fakeMediaPipeline = fakeKurentoClient.createMediaPipeline();
 
-    if (fakeKurentoClient == null) {
-      log.info("Creating a new kurentoClient for fake clients (reserving {} points)", fakePoints);
-      Properties properties = new Properties();
-      properties.add("loadPoints", fakePoints);
-      fakeKurentoClient = KurentoClient.create(properties);
-      fakeMediaPipeline = fakeKurentoClient.createMediaPipeline();
-
-      presenterSession.setFakeKurentoClient(fakeKurentoClient);
-      presenterSession.setFakeMediaPipeline(fakeMediaPipeline);
-    } else {
-      log.info("Reusing a kurentoClient for fake clients previously created");
-    }
-
-    ExecutorService executor = Executors.newFixedThreadPool(fakeClients);
-    for (int i = 0; i < fakeClients; i++) {
-      executor.execute(new Runnable() {
-        @Override
-        public void run() {
-          addFakeClient(filterId, inputWebRtcEndpoint);
+          presenterSession.setFakeKurentoClient(fakeKurentoClient);
+          presenterSession.setFakeMediaPipeline(fakeMediaPipeline);
+        } else {
+          log.info(
+              "[Session number {} - WS session {}] Reusing a kurentoClient for fake clients previously created",
+              sessionNumber, wsSession.getId());
         }
-      });
-      try {
-        Thread.sleep(timeBetweenClients);
-      } catch (InterruptedException e) {
-        log.warn("InterruptedException in time between fake clients", e);
+
+        ExecutorService executor = Executors.newFixedThreadPool(fakeClients);
+        for (int i = 0; i < fakeClients; i++) {
+          executor.execute(new Runnable() {
+            @Override
+            public void run() {
+              addFakeClient(filterId, inputWebRtcEndpoint);
+            }
+          });
+          try {
+            Thread.sleep(timeBetweenClients);
+          } catch (InterruptedException e) {
+            log.warn("InterruptedException in time between fake clients", e);
+          }
+        }
       }
-    }
+    }).start();
   }
 
   private void addFakeClient(String filterId, WebRtcEndpoint inputWebRtc) {
+    log.info("[Session number {} - WS session {}] Adding fake client with '{}' filtering",
+        sessionNumber, wsSession.getId(), filterId);
+
     final WebRtcEndpoint fakeOutputWebRtc = new WebRtcEndpoint.Builder(mediaPipeline).build();
     final WebRtcEndpoint fakeBrowser = new WebRtcEndpoint.Builder(fakeMediaPipeline).build();
 
@@ -239,7 +259,7 @@ public class UserSession {
         JsonObject response = new JsonObject();
         response.addProperty("id", "iceCandidate");
         response.add("candidate", JsonUtils.toJsonObject(event.getCandidate()));
-        handler.sendMessage(wsSession, new TextMessage(response.toString()));
+        handler.sendMessage(wsSession, sessionNumber, new TextMessage(response.toString()));
       }
     });
   }
@@ -250,22 +270,26 @@ public class UserSession {
 
   public void release() {
     if (mediaPipeline != null) {
-      log.info("Releasing media pipeline (WS session {})", wsSession.getId());
+      log.info("[Session number {} - WS session {}] Releasing media pipeline", sessionNumber,
+          wsSession.getId());
       mediaPipeline.release();
     }
     mediaPipeline = null;
 
-    log.info("Destroying kurentoClient (WS session {})", wsSession.getId());
+    log.info("[Session number {} - WS session {}] Destroying kurentoClient", sessionNumber,
+        wsSession.getId());
     kurentoClient.destroy();
 
     if (fakeMediaPipeline != null) {
-      log.info("Releasing fake media pipeline (WS session {})", wsSession.getId());
+      log.info("[Session number {} - WS session {}] Releasing fake media pipeline", sessionNumber,
+          wsSession.getId());
       fakeMediaPipeline.release();
     }
     fakeMediaPipeline = null;
 
     if (fakeKurentoClient != null) {
-      log.info("Destroying fake kurentoClient (WS session {})", wsSession.getId());
+      log.info("[Session number {} - WS session {}] Destroying fake kurentoClient", sessionNumber,
+          wsSession.getId());
       fakeKurentoClient.destroy();
     }
   }
