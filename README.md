@@ -2,10 +2,13 @@
 
 Copyright © 2016 [NUBOMEDIA]. Licensed under [LGPL v2.1 License].
 
-nubomedia-magic-mirror
-======================
+nubomedia-benchmark
+===================
 
-NUBOMEDIA Tutorial: WebRTC in loopback with FaceOverlay filter (magic mirror).
+This is a benchmark application aimed to assess the performance of NUBOMEDIA or
+Kurento. Depending of the configuration, the media logic has different
+topologies (one-to-one or one-to-many) and different media processing (none,
+filtering, encoding, etc).
 
 What is NUBOMEDIA
 -----------------
