@@ -146,6 +146,8 @@ function onOfferViewer(error, offerSdp) {
 	var timeBetweenClients = document.getElementById('timeBetweenClients').value;
 	var playTime = document.getElementById('playTime').value;
 	var fakePoints = document.getElementById('fakePoints').value;
+	var fakeClientsPerInstance = document
+			.getElementById('fakeClientsPerInstance').value;
 
 	var message = {
 		id : 'viewer',
@@ -156,7 +158,8 @@ function onOfferViewer(error, offerSdp) {
 		removeFakeClients : removeFakeClients,
 		timeBetweenClients : timeBetweenClients,
 		playTime : playTime,
-		fakePoints : fakePoints
+		fakePoints : fakePoints,
+		fakeClientsPerInstance : fakeClientsPerInstance
 	}
 	sendMessage(message);
 }
