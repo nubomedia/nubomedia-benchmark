@@ -44,13 +44,6 @@ import org.kurento.client.Properties;
 import org.kurento.client.WebRtcEndpoint;
 import org.kurento.client.ZBarFilter;
 import org.kurento.jsonrpc.JsonUtils;
-import org.kurento.module.chroma.ChromaFilter;
-import org.kurento.module.chroma.WindowParam;
-import org.kurento.module.crowddetector.CrowdDetectorFilter;
-import org.kurento.module.crowddetector.RegionOfInterest;
-import org.kurento.module.crowddetector.RegionOfInterestConfig;
-import org.kurento.module.crowddetector.RelativePoint;
-import org.kurento.module.platedetector.PlateDetectorFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.TextMessage;
@@ -165,16 +158,6 @@ public class UserSession {
         break;
       case "ZBarFilter":
         filter = new ZBarFilter.Builder(mediaPipeline).build();
-        break;
-      case "PlateDetectorFilter":
-        filter = new PlateDetectorFilter.Builder(mediaPipeline).build();
-        break;
-      case "CrowdDetectorFilter":
-        List<RegionOfInterest> rois = getDummyRois();
-        filter = new CrowdDetectorFilter.Builder(mediaPipeline, rois).build();
-        break;
-      case "ChromaFilter":
-        filter = new ChromaFilter.Builder(mediaPipeline, new WindowParam(0, 0, 640, 480)).build();
         break;
       case "None":
       default:
@@ -514,45 +497,6 @@ public class UserSession {
 
   public String getSessionNumber() {
     return sessionNumber;
-  }
-
-  private List<RegionOfInterest> getDummyRois() {
-    List<RelativePoint> points = new ArrayList<>();
-
-    float x = 0;
-    float y = 0;
-    points.add(new RelativePoint(x, y));
-
-    x = 1;
-    y = 0;
-    points.add(new RelativePoint(x, y));
-
-    x = 1;
-    y = 1;
-    points.add(new RelativePoint(x, y));
-
-    x = 0;
-    y = 1;
-    points.add(new RelativePoint(x, y));
-
-    RegionOfInterestConfig config = new RegionOfInterestConfig();
-    config.setFluidityLevelMin(10);
-    config.setFluidityLevelMed(35);
-    config.setFluidityLevelMax(65);
-    config.setFluidityNumFramesToEvent(5);
-    config.setOccupancyLevelMin(10);
-    config.setOccupancyLevelMed(35);
-    config.setOccupancyLevelMax(65);
-    config.setOccupancyNumFramesToEvent(5);
-    config.setSendOpticalFlowEvent(false);
-    config.setOpticalFlowNumFramesToEvent(3);
-    config.setOpticalFlowNumFramesToReset(3);
-    config.setOpticalFlowAngleOffset(0);
-
-    List<RegionOfInterest> rois = new ArrayList<>();
-    rois.add(new RegionOfInterest(points, config, "dummyRoy"));
-
-    return rois;
   }
 
 }
