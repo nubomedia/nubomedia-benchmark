@@ -101,12 +101,13 @@ public class UserSession {
     webRtcEndpoint.gatherCandidates();
   }
 
-  public void initViewer(UserSession presenterSession, String sdpOffer, String filterId,
-      int fakePoints, int fakeClients, int timeBetweenClients, boolean removeFakeClients,
-      int playTime, int fakeClientsPerInstance) {
+  public void initViewer(UserSession presenterSession, JsonObject jsonMessage) {
 
+    String processing = jsonMessage.get("processing").getAsString();
+    String sdpOffer = jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString();
+    int fakeClients = jsonMessage.getAsJsonPrimitive("fakeClients").getAsInt();
     log.info("[Session number {} - WS session {}] Init viewer(s) with {} filtering", sessionNumber,
-        wsSession.getId(), filterId);
+        wsSession.getId(), processing);
 
     mediaPipeline = presenterSession.getMediaPipeline();
     webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
@@ -115,7 +116,7 @@ public class UserSession {
 
     // Connectivity
     WebRtcEndpoint inputWebRtcEndpoint = presenterSession.getWebRtcEndpoint();
-    filter = connectMediaElements(inputWebRtcEndpoint, filterId, webRtcEndpoint);
+    filter = connectMediaElements(inputWebRtcEndpoint, processing, webRtcEndpoint);
 
     String sdpAnswer = webRtcEndpoint.processOffer(sdpOffer);
     JsonObject response = new JsonObject();
@@ -127,8 +128,7 @@ public class UserSession {
     webRtcEndpoint.gatherCandidates();
 
     if (fakeClients > 0) {
-      addFakeClients(presenterSession, fakePoints, fakeClients, timeBetweenClients, filterId,
-          inputWebRtcEndpoint, removeFakeClients, playTime, fakeClientsPerInstance);
+      addFakeClients(presenterSession, jsonMessage, inputWebRtcEndpoint);
     }
   }
 
@@ -179,10 +179,20 @@ public class UserSession {
     return filter;
   }
 
-  private void addFakeClients(final UserSession presenterSession, final int fakePoints,
-      final int fakeClients, final int timeBetweenClients, final String filterId,
-      final WebRtcEndpoint inputWebRtcEndpoint, final boolean removeFakeClients, final int playTime,
-      final int fakeClientsPerInstance) {
+  private void addFakeClients(UserSession presenterSession, JsonObject jsonMessage,
+      final WebRtcEndpoint inputWebRtcEndpoint) {
+
+    final String sessionNumber = jsonMessage.get("sessionNumber").getAsString();
+    final int fakeClients = jsonMessage.getAsJsonPrimitive("fakeClients").getAsInt();
+    final int timeBetweenClients = jsonMessage.getAsJsonPrimitive("timeBetweenClients").getAsInt();
+    final boolean removeFakeClients =
+        jsonMessage.getAsJsonPrimitive("removeFakeClients").getAsBoolean();
+    final int playTime = jsonMessage.getAsJsonPrimitive("playTime").getAsInt();
+    final String processing = jsonMessage.get("processing").getAsString();
+    final int fakePoints = jsonMessage.getAsJsonPrimitive("fakePoints").getAsInt();
+    final int fakeClientsPerInstance =
+        jsonMessage.getAsJsonPrimitive("fakeClientsPerInstance").getAsInt();
+
     new Thread(new Runnable() {
       @Override
       public void run() {
@@ -197,7 +207,7 @@ public class UserSession {
             @Override
             public void run() {
               try {
-                addFakeClient(filterId, inputWebRtcEndpoint, fakePoints, fakeClientsPerInstance);
+                addFakeClient(processing, inputWebRtcEndpoint, fakePoints, fakeClientsPerInstance);
               } finally {
                 latch.countDown();
               }
@@ -267,7 +277,7 @@ public class UserSession {
     String fakeMediaPipelineId = fakeMediaPipeline.getId();
     List<MediaElement> currentMediaElementList;
 
-    log.info("[Session number {} - WS session {}] mediaElementsInFakeMediaPipelineMap {}",
+    log.debug("[Session number {} - WS session {}] mediaElementsInFakeMediaPipelineMap {}",
         sessionNumber, wsSession.getId(), mediaElementsInFakeMediaPipelineMap.keySet());
     if (mediaElementsInFakeMediaPipelineMap.containsKey(fakeMediaPipelineId)) {
       currentMediaElementList = mediaElementsInFakeMediaPipelineMap.get(fakeMediaPipelineId);
