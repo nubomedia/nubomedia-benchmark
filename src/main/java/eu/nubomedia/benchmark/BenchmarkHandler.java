@@ -175,7 +175,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
         viewers.remove(sessionNumber);
       }
 
-      // Release media pipeline and kurentoClient of presenter session
+      // Release presenter session
       presenters.get(sessionNumber).releasePresenter();
 
       // Remove presenter session from map

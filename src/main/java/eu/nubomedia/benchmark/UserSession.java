@@ -15,14 +15,20 @@
 
 package eu.nubomedia.benchmark;
 
+import static org.kurento.commons.PropertiesManager.getProperty;
+import static org.kurento.test.config.TestConfiguration.FAKE_KMS_WS_URI_PROP;
+import static org.kurento.test.config.TestConfiguration.KMS_WS_URI_PROP;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.kurento.client.EventListener;
 import org.kurento.client.FaceOverlayFilter;
 import org.kurento.client.Filter;
@@ -62,6 +68,8 @@ public class UserSession {
 
   private final Logger log = LoggerFactory.getLogger(UserSession.class);
 
+  private final static String FAKE_KMS_SEPARATOR_CHAR = ",";
+
   private BenchmarkHandler handler;
   private WebSocketSession wsSession;
   private WebRtcEndpoint webRtcEndpoint;
@@ -72,6 +80,7 @@ public class UserSession {
   private List<KurentoClient> fakeKurentoClients = new ArrayList<>();
   private List<MediaPipeline> fakeMediaPipelines = new ArrayList<>();
   private Map<String, List<MediaElement>> mediaElementsInFakeMediaPipelineMap = new TreeMap<>();
+  private Queue<String> fakeKmsUriQueue;
 
   public UserSession(WebSocketSession wsSession, String sessionNumber, BenchmarkHandler handler) {
     this.wsSession = wsSession;
@@ -80,12 +89,21 @@ public class UserSession {
   }
 
   public void initPresenter(String sdpOffer, int loadPoints) {
-    log.info("[Session number {} - WS session {}] Init presenter with {} points", sessionNumber,
-        wsSession.getId(), loadPoints);
+    log.info("[Session number {} - WS session {}] Init presenter", sessionNumber,
+        wsSession.getId());
 
-    Properties properties = new Properties();
-    properties.add("loadPoints", loadPoints);
-    kurentoClient = KurentoClient.create(properties);
+    String wsUri = getProperty(KMS_WS_URI_PROP);
+    if (wsUri != null) {
+      log.info("[Session number {} - WS session {}] Using KMS URI {} to create KurentoClient",
+          sessionNumber, wsSession.getId(), wsUri);
+      kurentoClient = KurentoClient.create(wsUri);
+    } else {
+      log.info("[Session number {} - WS session {}] Reserving {} points to create KurentoClient",
+          sessionNumber, wsSession.getId(), loadPoints);
+      Properties properties = new Properties();
+      properties.add("loadPoints", loadPoints);
+      kurentoClient = KurentoClient.create(properties);
+    }
 
     mediaPipeline = kurentoClient.createMediaPipeline();
     webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
@@ -344,13 +362,24 @@ public class UserSession {
   }
 
   private void createNewFakeKurentoClient(int fakePoints) {
-    log.info(
-        "[Session number {} - WS session {}] Creating a new kurentoClient for fake clients (reserving {} points)",
-        sessionNumber, wsSession.getId(), fakePoints);
+    String fakeKmsUriProp = getProperty(FAKE_KMS_WS_URI_PROP);
+    KurentoClient fakeKurentoClient;
+    if (fakeKmsUriProp != null) {
+      String fakeKmsUri = getNextFakeKmsUri(fakeKmsUriProp);
+      log.info(
+          "[Session number {} - WS session {}] Using KMS URI {} to create creating a new kurentoClient for fake clients",
+          sessionNumber, wsSession.getId(), fakeKmsUri);
+      fakeKurentoClient = KurentoClient.create(fakeKmsUri);
+    } else {
+      log.info(
+          "[Session number {} - WS session {}] Creating a new kurentoClient for fake clients (reserving {} points)",
+          sessionNumber, wsSession.getId(), fakePoints);
 
-    Properties properties = new Properties();
-    properties.add("loadPoints", fakePoints);
-    KurentoClient fakeKurentoClient = KurentoClient.create(properties);
+      Properties properties = new Properties();
+      properties.add("loadPoints", fakePoints);
+      fakeKurentoClient = KurentoClient.create(properties);
+    }
+
     MediaPipeline fakeMediaPipeline = fakeKurentoClient.createMediaPipeline();
 
     fakeKurentoClients.add(fakeKurentoClient);
@@ -359,6 +388,23 @@ public class UserSession {
     log.debug(
         "[Session number {} - WS session {}] Created Media Pipeline for fake clients with id {}",
         sessionNumber, wsSession.getId(), fakeMediaPipeline.getId());
+  }
+
+  private String getNextFakeKmsUri(String fakeKmsUriProp) {
+    String nextUri = null;
+    if (fakeKmsUriQueue == null) {
+      fakeKmsUriQueue = new CircularFifoQueue<String>();
+      if (fakeKmsUriProp.contains(FAKE_KMS_SEPARATOR_CHAR)) {
+        String[] split = fakeKmsUriProp.split(FAKE_KMS_SEPARATOR_CHAR);
+        for (String s : split) {
+          fakeKmsUriQueue.add(s);
+        }
+      }
+
+    }
+    nextUri = fakeKmsUriQueue.poll();
+    fakeKmsUriQueue.add(nextUri);
+    return nextUri;
   }
 
   public void addCandidate(JsonObject jsonCandidate) {

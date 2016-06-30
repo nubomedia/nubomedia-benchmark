@@ -84,6 +84,13 @@
 			<artifactId>nubomedia-media-client</artifactId>
 			<version>${nubomedia-media-client.version}</version>
 		</dependency>
+
+		<!-- Utils -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-collections4</artifactId>
+			<version>4.1</version>
+		</dependency>
 	</dependencies>
 
 	<build>
