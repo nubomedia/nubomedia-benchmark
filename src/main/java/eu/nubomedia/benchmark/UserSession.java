@@ -31,7 +31,6 @@ import java.util.concurrent.Executors;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.kurento.client.EventListener;
 import org.kurento.client.FaceOverlayFilter;
-import org.kurento.client.Filter;
 import org.kurento.client.FilterType;
 import org.kurento.client.GStreamerFilter;
 import org.kurento.client.IceCandidate;
@@ -40,6 +39,7 @@ import org.kurento.client.KurentoClient;
 import org.kurento.client.MediaElement;
 import org.kurento.client.MediaPipeline;
 import org.kurento.client.OnIceCandidateEvent;
+import org.kurento.client.PassThrough;
 import org.kurento.client.Properties;
 import org.kurento.client.WebRtcEndpoint;
 import org.kurento.client.ZBarFilter;
@@ -67,7 +67,7 @@ public class UserSession {
   private WebSocketSession wsSession;
   private WebRtcEndpoint webRtcEndpoint;
   private KurentoClient kurentoClient;
-  private Filter filter;
+  private MediaElement filter;
   private MediaPipeline mediaPipeline;
   private String sessionNumber;
   private List<KurentoClient> fakeKurentoClients = new ArrayList<>();
@@ -100,6 +100,11 @@ public class UserSession {
 
     mediaPipeline = kurentoClient.createMediaPipeline();
     webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
+
+    webRtcEndpoint.getStats().get("videoE2ELatency");
+    mediaPipeline.setLatencyStats(true);
+    mediaPipeline.getLatencyStats();
+
     addOnIceCandidateListener();
 
     String sdpAnswer = webRtcEndpoint.processOffer(sdpOffer);
@@ -143,8 +148,9 @@ public class UserSession {
     }
   }
 
-  private Filter connectMediaElements(MediaElement input, String filterId, MediaElement output) {
-    Filter filter = null;
+  private MediaElement connectMediaElements(MediaElement input, String filterId,
+      MediaElement output) {
+    MediaElement filter = null;
     switch (filterId) {
       case "Encoder":
         filter = new GStreamerFilter.Builder(mediaPipeline, "capsfilter caps=video/x-raw")
@@ -158,6 +164,9 @@ public class UserSession {
         break;
       case "ZBarFilter":
         filter = new ZBarFilter.Builder(mediaPipeline).build();
+        break;
+      case "PassThrough":
+        filter = new PassThrough.Builder(mediaPipeline).build();
         break;
       case "None":
       default:
@@ -315,7 +324,7 @@ public class UserSession {
     final WebRtcEndpoint fakeOutputWebRtc = new WebRtcEndpoint.Builder(mediaPipeline).build();
     final WebRtcEndpoint fakeBrowser = new WebRtcEndpoint.Builder(fakeMediaPipeline).build();
 
-    Filter filter = connectMediaElements(inputWebRtc, filterId, fakeOutputWebRtc);
+    MediaElement filter = connectMediaElements(inputWebRtc, filterId, fakeOutputWebRtc);
 
     fakeOutputWebRtc.addOnIceCandidateListener(new EventListener<OnIceCandidateEvent>() {
       @Override
