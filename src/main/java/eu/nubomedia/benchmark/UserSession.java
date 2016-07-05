@@ -391,8 +391,9 @@ public class UserSession {
         for (String s : split) {
           fakeKmsUriQueue.add(s);
         }
+      } else {
+        fakeKmsUriQueue.add(fakeKmsUriProp);
       }
-
     }
     nextUri = fakeKmsUriQueue.poll();
     fakeKmsUriQueue.add(nextUri);
