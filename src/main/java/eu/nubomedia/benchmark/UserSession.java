@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.TreeMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -72,7 +72,8 @@ public class UserSession {
   private String sessionNumber;
   private List<KurentoClient> fakeKurentoClients = new ArrayList<>();
   private List<MediaPipeline> fakeMediaPipelines = new ArrayList<>();
-  private Map<String, List<MediaElement>> mediaElementsInFakeMediaPipelineMap = new TreeMap<>();
+  private Map<String, List<MediaElement>> mediaElementsInFakeMediaPipelineMap =
+      new ConcurrentSkipListMap<>();
   private Queue<String> fakeKmsUriQueue;
 
   public UserSession(WebSocketSession wsSession, String sessionNumber, BenchmarkHandler handler) {
