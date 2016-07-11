@@ -256,6 +256,10 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     File presenterFileRec = getPresenter(index).getRecording("presenter-session" + index + ".webm");
     File viewerFileRec = getViewer(index).getRecording("viewer-session" + index + ".webm");
 
+    // Serialize data (uncomment these line to serialize data, for debugging purposes)
+    // serializeObject(presenterMap, "presenter.ser");
+    // serializeObject(viewerMap, "viewer.ser");
+
     // Finish OCR
     getPresenter(index).endOcr();
     getViewer(index).endOcr();
