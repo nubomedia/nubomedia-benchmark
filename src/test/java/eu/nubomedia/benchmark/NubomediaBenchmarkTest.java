@@ -278,7 +278,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
         this.getClass().getSimpleName() + "-session" + index + "-qov.csv");
 
     // Process data and write latency/statistics
-    log.info("[Session {}] Calulating latency and collections statitics", index);
+    log.info("[Session {}] Calulating latency and collecting stats", index);
     processDataToCsv(this.getClass().getSimpleName() + "-session" + index + ".csv", presenterMap,
         viewerMap);
 
