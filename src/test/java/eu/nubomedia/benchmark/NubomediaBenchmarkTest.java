@@ -245,30 +245,37 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     waitSeconds(playTime);
 
     // Get OCR results and statistics
+    log.info("[Session {}] Get OCR results and statistics", index);
     Map<String, Map<String, String>> presenterMap = getPresenter(index).getOcrMap();
     Map<String, Map<String, String>> viewerMap = getViewer(index).getOcrMap();
 
     // Stop recordings
+    log.info("[Session {}] Stop recordings", index);
     getPresenter(index).stopRecording();
     getViewer(index).stopRecording();
 
-    // Store recordings
-    File presenterFileRec = getPresenter(index).getRecording("presenter-session" + index + ".webm");
-    File viewerFileRec = getViewer(index).getRecording("viewer-session" + index + ".webm");
-
     // Serialize data (uncomment these line to serialize data, for debugging purposes)
+    // log.info("[Session {}] Serialize data", index);
     // serializeObject(presenterMap, "presenter.ser");
     // serializeObject(viewerMap, "viewer.ser");
 
     // Finish OCR
+    log.info("[Session {}] Finish OCR", index);
     getPresenter(index).endOcr();
     getViewer(index).endOcr();
 
+    // Store recordings
+    log.info("[Session {}] Store recordings", index);
+    File presenterFileRec = getPresenter(index).getRecording("presenter-session" + index + ".webm");
+    File viewerFileRec = getViewer(index).getRecording("viewer-session" + index + ".webm");
+
     // Stop presenter and viewer(s)
+    log.info("[Session {}] Stop presenter and viewer(s)", index);
     getPresenter(index).getBrowser().getWebDriver().findElement(By.id("stop")).click();
     getViewer(index).getBrowser().getWebDriver().findElement(By.id("stop")).click();
 
     // Close browsers
+    log.info("[Session {}] Close browsers", index);
     getPresenter(index).close();
     getViewer(index).close();
 

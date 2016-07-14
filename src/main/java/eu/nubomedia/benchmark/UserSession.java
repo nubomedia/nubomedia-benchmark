@@ -214,11 +214,13 @@ public class UserSession {
         ExecutorService executor = Executors.newFixedThreadPool(fakeClients);
         for (int i = 0; i < fakeClients; i++) {
           waitMs(timeBetweenClients);
+          final int j = i + 1;
           executor.execute(new Runnable() {
             @Override
             public void run() {
               try {
-                addFakeClient(processing, inputWebRtcEndpoint, fakePoints, fakeClientsPerInstance);
+                addFakeClient(j, processing, inputWebRtcEndpoint, fakePoints,
+                    fakeClientsPerInstance);
               } finally {
                 latch.countDown();
               }
@@ -273,10 +275,10 @@ public class UserSession {
     }
   }
 
-  private void addFakeClient(String filterId, WebRtcEndpoint inputWebRtc, int fakePoints,
+  private void addFakeClient(int count, String filterId, WebRtcEndpoint inputWebRtc, int fakePoints,
       int fakeClientsPerInstance) {
-    log.info("[Session number {} - WS session {}] Adding fake client with {} filtering",
-        sessionNumber, wsSession.getId(), filterId);
+    log.info("[Session number {} - WS session {}] Adding fake client #{} with {} filtering",
+        sessionNumber, wsSession.getId(), count, filterId);
 
     if (fakeKurentoClients.isEmpty()) {
       createNewFakeKurentoClient(fakePoints);
