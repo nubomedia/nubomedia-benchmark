@@ -119,7 +119,8 @@ function viewer() {
 
 		var options = {
 			remoteVideo : video,
-			onicecandidate : onIceCandidate
+			onicecandidate : onIceCandidate,
+			framerate : 30
 		}
 		webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(options,
 				function(error) {
