@@ -53,33 +53,31 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
 
   private final Logger log = LoggerFactory.getLogger(NubomediaBenchmarkTest.class);
 
-  // Test parameters
   public static final String APP_URL_PROP = "app.url";
   public static final String APP_URL_DEFAULT = "https://localhost:8443/";
+  public static final String FAKE_CLIENTS_NUMBER_PROP = "fake.clients.number";
+  public static final int FAKE_CLIENTS_NUMBER_DEFAULT = 150;
+  public static final String FAKE_CLIENTS_RATE_PROP = "fake.clients.rate";
+  public static final int FAKE_CLIENTS_RATE_DEFAULT = 24000;
+  public static final String FAKE_CLIENTS_PER_KMS_PROP = "fake.clients.number.per.kms";
+  public static final int FAKE_CLIENTS_PER_KMS_DEFAULT = 75;
+
   public static final String SESSION_PLAYTIME_PROP = "session.play.time";
-  public static final int SESSION_PLAYTIME_DEFAULT = 5;
+  public static final int SESSION_PLAYTIME_DEFAULT = FAKE_CLIENTS_RATE_DEFAULT / 1000;
   public static final String SESSION_RATE_PROP = "session.rate.time";
   public static final int SESSION_RATE_DEFAULT = 1000;
-
-  // GUI parameters
   public static final String SESSIONS_NUMBER_PROP = "sessions.number";
   public static final int SESSIONS_NUMBER_DEFAULT = 1;
   public static final String POINTS_PER_SESSION_PROP = "points.per.session";
   public static final int POINTS_PER_SESSION_DEFAULT = 100;
   public static final String MEDIA_PROCESSING_PROP = "processing";
   public static final String MEDIA_PROCESSING_DEFAULT = "None";
-  public static final String FAKE_CLIENTS_NUMBER_PROP = "fake.clients.number";
-  public static final int FAKE_CLIENTS_NUMBER_DEFAULT = 0;
-  public static final String FAKE_CLIENTS_RATE_PROP = "fake.clients.rate";
-  public static final int FAKE_CLIENTS_RATE_DEFAULT = 1000;
   public static final String FAKE_CLIENTS_REMOVE_PROP = "fake.clients.remove";
   public static final boolean FAKE_CLIENTS_REMOVE_DEFAULT = false;
   public static final String FAKE_CLIENTS_TOGETHER_TIME_PROP = "fake.clients.play.time";
   public static final int FAKE_CLIENTS_TOGETHER_TIME_DEFAULT = 10;
   public static final String FAKE_CLIENTS_KMS_POINTS_PROP = "fake.clients.kms.points";
   public static final int FAKE_CLIENTS_KMS_POINTS_DEFAULT = 200;
-  public static final String FAKE_CLIENTS_PER_KMS_PROP = "fake.clients.number.per.kms";
-  public static final int FAKE_CLIENTS_PER_KMS_DEFAULT = 20;
 
   public int extraTimePerFakeClients = 0;
 
@@ -255,9 +253,9 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getViewer(index).stopRecording();
 
     // Serialize data (uncomment these line to serialize data, for debugging purposes)
-    // log.info("[Session {}] Serialize data", index);
-    // serializeObject(presenterMap, "presenter.ser");
-    // serializeObject(viewerMap, "viewer.ser");
+    log.info("[Session {}] Serialize data", index);
+    serializeObject(presenterMap, "presenter.ser");
+    serializeObject(viewerMap, "viewer.ser");
 
     // Finish OCR
     log.info("[Session {}] Finish OCR", index);
@@ -266,8 +264,15 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
 
     // Store recordings
     log.info("[Session {}] Store recordings", index);
-    File presenterFileRec = getPresenter(index).getRecording("presenter-session" + index + ".webm");
-    File viewerFileRec = getViewer(index).getRecording("viewer-session" + index + ".webm");
+    getPresenter(index).saveRecordingToDisk();
+    getViewer(index).saveRecordingToDisk();
+    String downloads = System.getProperty("user.home") + File.separator + "Downloads";
+    waitForFilesInFolder(downloads, "webm", 2);
+
+    // FIXME: large recordings cannot be obtained like this
+    // File presenterFileRec = getPresenter(index).getRecording("presenter-session" + index +
+    // ".webm");
+    // File viewerFileRec = getViewer(index).getRecording("viewer-session" + index + ".webm");
 
     // Stop presenter and viewer(s)
     log.info("[Session {}] Stop presenter and viewer(s)", index);
@@ -280,9 +285,11 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getViewer(index).close();
 
     // Process data and write quality metrics
-    log.info("[Session {}] Calulating quality of video", index);
-    getQuality(presenterFileRec, viewerFileRec,
-        this.getClass().getSimpleName() + "-session" + index + "-qov.csv");
+    // FIXME: Commented to run large test scenarios (manual processing of recordings to get quality
+    // of video (SSIM, QSNR) metrics
+    // log.info("[Session {}] Calulating quality of video", index);
+    // getQuality(presenterFileRec, viewerFileRec,
+    // this.getClass().getSimpleName() + "-session" + index + "-qov.csv");
 
     // Process data and write latency/statistics
     log.info("[Session {}] Calulating latency and collecting stats", index);
