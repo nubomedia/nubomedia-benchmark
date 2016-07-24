@@ -373,6 +373,11 @@ public class UserSession {
       Properties properties = new Properties();
       properties.add("loadPoints", fakePoints);
       fakeKurentoClient = KurentoClient.create(properties);
+
+      log.info(
+          "[Session number {} - WS session {}] **** fakeKurentoClient {} : label {} - sessionId {}",
+          sessionNumber, wsSession.getId(), fakeKurentoClient, fakeKurentoClient.getLabel(),
+          fakeKurentoClient.getSessionId());
     }
 
     MediaPipeline fakeMediaPipeline = fakeKurentoClient.createMediaPipeline();
