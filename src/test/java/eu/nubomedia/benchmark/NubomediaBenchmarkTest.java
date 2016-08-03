@@ -56,7 +56,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final String APP_URL_PROP = "app.url";
   public static final String APP_URL_DEFAULT = "https://localhost:8443/";
   public static final String FAKE_CLIENTS_NUMBER_PROP = "fake.clients.number";
-  public static final int FAKE_CLIENTS_NUMBER_DEFAULT = 150;
+  public static final int FAKE_CLIENTS_NUMBER_DEFAULT = 4;
   public static final String FAKE_CLIENTS_RATE_PROP = "fake.clients.rate";
   public static final int FAKE_CLIENTS_RATE_DEFAULT = 24000;
   public static final String FAKE_CLIENTS_PER_KMS_PROP = "fake.clients.number.per.kms";
@@ -253,9 +253,9 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getViewer(index).stopRecording();
 
     // Serialize data (uncomment these line to serialize data, for debugging purposes)
-    log.info("[Session {}] Serialize data", index);
-    serializeObject(presenterMap, "presenter.ser");
-    serializeObject(viewerMap, "viewer.ser");
+    // log.info("[Session {}] Serialize data", index);
+    // serializeObject(presenterMap, "presenter.ser");
+    // serializeObject(viewerMap, "viewer.ser");
 
     // Finish OCR
     log.info("[Session {}] Finish OCR", index);
@@ -264,15 +264,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
 
     // Store recordings
     log.info("[Session {}] Store recordings", index);
-    getPresenter(index).saveRecordingToDisk();
-    getViewer(index).saveRecordingToDisk();
-    String downloads = System.getProperty("user.home") + File.separator + "Downloads";
-    waitForFilesInFolder(downloads, "webm", 2);
-
-    // FIXME: large recordings cannot be obtained like this
-    // File presenterFileRec = getPresenter(index).getRecording("presenter-session" + index +
-    // ".webm");
-    // File viewerFileRec = getViewer(index).getRecording("viewer-session" + index + ".webm");
+    File presenterFileRec = getPresenter(index).getRecording("presenter-session" + index + ".webm");
+    File viewerFileRec = getViewer(index).getRecording("viewer-session" + index + ".webm");
 
     // Stop presenter and viewer(s)
     log.info("[Session {}] Stop presenter and viewer(s)", index);
@@ -285,11 +278,9 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getViewer(index).close();
 
     // Process data and write quality metrics
-    // FIXME: Commented to run large test scenarios (manual processing of recordings to get quality
-    // of video (SSIM, QSNR) metrics
-    // log.info("[Session {}] Calulating quality of video", index);
-    // getQuality(presenterFileRec, viewerFileRec,
-    // this.getClass().getSimpleName() + "-session" + index + "-qov.csv");
+    log.info("[Session {}] Calculating quality of video", index);
+    getQuality(presenterFileRec, viewerFileRec,
+        this.getClass().getSimpleName() + "-session" + index + "-qov.csv");
 
     // Process data and write latency/statistics
     log.info("[Session {}] Calulating latency and collecting stats", index);
