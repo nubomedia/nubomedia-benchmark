@@ -63,7 +63,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final int FAKE_CLIENTS_PER_KMS_DEFAULT = 75;
 
   public static final String SESSION_PLAYTIME_PROP = "session.play.time";
-  public static final int SESSION_PLAYTIME_DEFAULT = FAKE_CLIENTS_RATE_DEFAULT / 1000;
+  public static final int SESSION_PLAYTIME_DEFAULT = 0;
   public static final String SESSION_RATE_PROP = "session.rate.time";
   public static final int SESSION_RATE_DEFAULT = 1000;
   public static final String SESSIONS_NUMBER_PROP = "sessions.number";
@@ -75,7 +75,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final String FAKE_CLIENTS_REMOVE_PROP = "fake.clients.remove";
   public static final boolean FAKE_CLIENTS_REMOVE_DEFAULT = false;
   public static final String FAKE_CLIENTS_TOGETHER_TIME_PROP = "fake.clients.play.time";
-  public static final int FAKE_CLIENTS_TOGETHER_TIME_DEFAULT = 10;
+  public static final int FAKE_CLIENTS_TOGETHER_TIME_DEFAULT =
+      FAKE_CLIENTS_NUMBER_DEFAULT * (FAKE_CLIENTS_RATE_DEFAULT / 1000);
   public static final String FAKE_CLIENTS_KMS_POINTS_PROP = "fake.clients.kms.points";
   public static final int FAKE_CLIENTS_KMS_POINTS_DEFAULT = 200;
 
