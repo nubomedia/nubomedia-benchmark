@@ -79,10 +79,14 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
       FAKE_CLIENTS_NUMBER_DEFAULT * (FAKE_CLIENTS_RATE_DEFAULT / 1000);
   public static final String FAKE_CLIENTS_KMS_POINTS_PROP = "fake.clients.kms.points";
   public static final int FAKE_CLIENTS_KMS_POINTS_DEFAULT = 200;
+  public static final String VIDEO_QUALITY_PROP = "analyze.video.quality";
+  public static final boolean VIDEO_QUALITY_DEFAULT = false;
   public static final String OUTPUT_FOLDER_PROP = "output.folder";
   public static final String OUTPUT_FOLDER_DEFAULT = ".";
 
   public int extraTimePerFakeClients = 0;
+  public boolean analyzeVideoQuality = getProperty(VIDEO_QUALITY_PROP, VIDEO_QUALITY_DEFAULT);
+  public String outputFolder = getProperty(OUTPUT_FOLDER_PROP, OUTPUT_FOLDER_DEFAULT);
 
   @Parameters(name = "{index}: {0}")
   public static Collection<Object[]> data() {
@@ -287,9 +291,11 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getViewer(index).close();
 
     // Process data and write quality metrics
-    log.info("[Session {}] Calculating quality of video", index);
-    getQuality(presenterFileRec, viewerFileRec,
-        this.getClass().getSimpleName() + "-session" + index + "-qov.csv");
+    if (analyzeVideoQuality) {
+      log.info("[Session {}] Calculating quality of video", index);
+      getQuality(presenterFileRec, viewerFileRec,
+          outputFolder + this.getClass().getSimpleName() + "-session" + index + "-qov.csv");
+    }
 
     // Process data and write latency/statistics
     log.info("[Session {}] Calulating latency and collecting stats", index);
