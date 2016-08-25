@@ -79,6 +79,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
       FAKE_CLIENTS_NUMBER_DEFAULT * (FAKE_CLIENTS_RATE_DEFAULT / 1000);
   public static final String FAKE_CLIENTS_KMS_POINTS_PROP = "fake.clients.kms.points";
   public static final int FAKE_CLIENTS_KMS_POINTS_DEFAULT = 200;
+  public static final String OUTPUT_FOLDER_PROP = "output.folder";
+  public static final String OUTPUT_FOLDER_DEFAULT = ".";
 
   public int extraTimePerFakeClients = 0;
 
@@ -173,6 +175,10 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
         fakeClientsPerInstanceWe.sendKeys(fakeClientsPerInstance);
       }
     }
+
+    if (!outputFolder.endsWith(File.separator)) {
+      outputFolder += File.separator;
+    }
   }
 
   @Test
@@ -255,8 +261,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
 
     // Serialize data (uncomment these line to serialize data, for debugging purposes)
     // log.info("[Session {}] Serialize data", index);
-    // serializeObject(presenterMap, "presenter.ser");
-    // serializeObject(viewerMap, "viewer.ser");
+    // serializeObject(presenterMap, outputFolder + "presenter.ser");
+    // serializeObject(viewerMap, outputFolder + "viewer.ser");
 
     // Finish OCR
     log.info("[Session {}] Finish OCR", index);
@@ -265,8 +271,10 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
 
     // Store recordings
     log.info("[Session {}] Store recordings", index);
-    File presenterFileRec = getPresenter(index).getRecording("presenter-session" + index + ".webm");
-    File viewerFileRec = getViewer(index).getRecording("viewer-session" + index + ".webm");
+    File presenterFileRec =
+        getPresenter(index).getRecording(outputFolder + "presenter-session" + index + ".webm");
+    File viewerFileRec =
+        getViewer(index).getRecording(outputFolder + "viewer-session" + index + ".webm");
 
     // Stop presenter and viewer(s)
     log.info("[Session {}] Stop presenter and viewer(s)", index);
@@ -285,8 +293,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
 
     // Process data and write latency/statistics
     log.info("[Session {}] Calulating latency and collecting stats", index);
-    processDataToCsv(this.getClass().getSimpleName() + "-session" + index + ".csv", presenterMap,
-        viewerMap);
+    processDataToCsv(outputFolder + this.getClass().getSimpleName() + "-session" + index + ".csv",
+        presenterMap, viewerMap);
 
     log.info("[Session {}] End of test", index);
   }
