@@ -56,9 +56,9 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final String APP_URL_PROP = "app.url";
   public static final String APP_URL_DEFAULT = "https://localhost:8443/";
   public static final String FAKE_CLIENTS_NUMBER_PROP = "fake.clients.number";
-  public static final int FAKE_CLIENTS_NUMBER_DEFAULT = 4;
+  public static final int FAKE_CLIENTS_NUMBER_DEFAULT = 10;
   public static final String FAKE_CLIENTS_RATE_PROP = "fake.clients.rate";
-  public static final int FAKE_CLIENTS_RATE_DEFAULT = 24000;
+  public static final int FAKE_CLIENTS_RATE_DEFAULT = 1000;
   public static final String FAKE_CLIENTS_PER_KMS_PROP = "fake.clients.number.per.kms";
   public static final int FAKE_CLIENTS_PER_KMS_DEFAULT = 75;
 
