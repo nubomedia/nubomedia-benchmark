@@ -245,8 +245,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
 
     // Get OCR results and statistics
     log.info("[Session {}] Get OCR results and statistics", index);
-    Map<String, Map<String, String>> presenterMap = getPresenter(index).getOcrMap();
-    Map<String, Map<String, String>> viewerMap = getViewer(index).getOcrMap();
+    Map<String, Map<String, Object>> presenterMap = getPresenter(index).getOcrMap();
+    Map<String, Map<String, Object>> viewerMap = getViewer(index).getOcrMap();
 
     // Stop recordings
     log.info("[Session {}] Stop recordings", index);
