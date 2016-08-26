@@ -143,7 +143,7 @@ public class UserSession {
               }
             }
           } catch (Exception e) {
-            log.warn("Exception gathering videoE2ELatency {}", e.getMessage());
+            log.debug("Exception gathering videoE2ELatency {}", e.getMessage());
           } finally {
             try {
               Thread.sleep(1000); // 1 sample per second
