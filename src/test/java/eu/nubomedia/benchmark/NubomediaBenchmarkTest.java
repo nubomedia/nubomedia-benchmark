@@ -92,11 +92,14 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final boolean VIDEO_QUALITY_PSNR_DEFAULT = false;
   public static final String OUTPUT_FOLDER_PROP = "output.folder";
   public static final String OUTPUT_FOLDER_DEFAULT = ".";
+  public static final String SERIALIZE_DATA_PROP = "serialize.data";
+  public static final boolean SERIALIZE_DATA_DEFAULT = false;
 
   public int extraTimePerFakeClients = 0;
   public boolean getSsim = getProperty(VIDEO_QUALITY_SSIM_PROP, VIDEO_QUALITY_SSIM_DEFAULT);
   public boolean getPsnr = getProperty(VIDEO_QUALITY_PSNR_PROP, VIDEO_QUALITY_PSNR_DEFAULT);
   public String outputFolder = getProperty(OUTPUT_FOLDER_PROP, OUTPUT_FOLDER_DEFAULT);
+  public boolean serializeData = getProperty(SERIALIZE_DATA_PROP, SERIALIZE_DATA_DEFAULT);
 
   @Parameters(name = "{index}: {0}")
   public static Collection<Object[]> data() {
@@ -273,10 +276,12 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getPresenter(index).stopRecording();
     getViewer(index).stopRecording();
 
-    // Serialize data (uncomment these line to serialize data, for debugging purposes)
-    // log.info("[Session {}] Serialize data", index);
-    // serializeObject(presenterMap, outputFolder + "presenter.ser");
-    // serializeObject(viewerMap, outputFolder + "viewer.ser");
+    // Serialize data
+    if (serializeData) {
+      log.info("[Session {}] Serialize data", index);
+      serializeObject(presenterMap, outputFolder + "presenter.ser");
+      serializeObject(viewerMap, outputFolder + "viewer.ser");
+    }
 
     // Finish OCR
     log.info("[Session {}] Finish OCR", index);
