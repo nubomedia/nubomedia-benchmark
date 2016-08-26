@@ -20,6 +20,7 @@ import static org.kurento.test.config.TestConfiguration.FAKE_KMS_WS_URI_PROP;
 import static org.kurento.test.config.TestConfiguration.KMS_WS_URI_PROP;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -29,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
+import org.kurento.client.EndpointStats;
 import org.kurento.client.EventListener;
 import org.kurento.client.FaceOverlayFilter;
 import org.kurento.client.FilterType;
@@ -37,10 +39,13 @@ import org.kurento.client.IceCandidate;
 import org.kurento.client.ImageOverlayFilter;
 import org.kurento.client.KurentoClient;
 import org.kurento.client.MediaElement;
+import org.kurento.client.MediaLatencyStat;
 import org.kurento.client.MediaPipeline;
+import org.kurento.client.MediaType;
 import org.kurento.client.OnIceCandidateEvent;
 import org.kurento.client.PassThrough;
 import org.kurento.client.Properties;
+import org.kurento.client.Stats;
 import org.kurento.client.WebRtcEndpoint;
 import org.kurento.client.ZBarFilter;
 import org.kurento.jsonrpc.JsonUtils;
@@ -75,6 +80,8 @@ public class UserSession {
   private Map<String, List<MediaElement>> mediaElementsInFakeMediaPipelineMap =
       new ConcurrentSkipListMap<>();
   private Queue<String> fakeKmsUriQueue;
+  private List<Double> latencies = new ArrayList<>();
+  private Thread latencyThread;
 
   public UserSession(WebSocketSession wsSession, String sessionNumber, BenchmarkHandler handler) {
     this.wsSession = wsSession;
@@ -102,10 +109,6 @@ public class UserSession {
     mediaPipeline = kurentoClient.createMediaPipeline();
     webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
 
-    webRtcEndpoint.getStats().get("videoE2ELatency");
-    mediaPipeline.setLatencyStats(true);
-    mediaPipeline.getLatencyStats();
-
     addOnIceCandidateListener();
 
     String sdpAnswer = webRtcEndpoint.processOffer(sdpOffer);
@@ -116,6 +119,44 @@ public class UserSession {
 
     handler.sendMessage(wsSession, sessionNumber, new TextMessage(response.toString()));
     webRtcEndpoint.gatherCandidates();
+
+  }
+
+  private Thread gatherLatencies() {
+    mediaPipeline.setLatencyStats(true);
+
+    Thread thread = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        while (true) {
+          try {
+            if (webRtcEndpoint != null) {
+              Map<String, Stats> stats = webRtcEndpoint.getStats(MediaType.VIDEO);
+              Collection<Stats> values = stats.values();
+              for (Stats s : values) {
+                if (s instanceof EndpointStats) {
+                  List<MediaLatencyStat> e2eLatency = ((EndpointStats) s).getE2ELatency();
+                  if (!e2eLatency.isEmpty()) {
+                    latencies.add(e2eLatency.get(0).getAvg()); // nano seconds
+                  }
+                }
+              }
+            }
+          } catch (Exception e) {
+            log.warn("Exception gathering videoE2ELatency {}", e.getMessage());
+          } finally {
+            try {
+              Thread.sleep(1000); // 1 sample per second
+            } catch (InterruptedException e) {
+              log.debug("Interrupted thread for gathering videoE2ELatency");
+            }
+          }
+        }
+      }
+    });
+    thread.start();
+    return thread;
+
   }
 
   public void initViewer(UserSession presenterSession, JsonObject jsonMessage) {
@@ -147,6 +188,9 @@ public class UserSession {
     if (fakeClients > 0) {
       addFakeClients(presenterSession, jsonMessage, inputWebRtcEndpoint);
     }
+
+    // Viewer videoE2ELatency
+    latencyThread = gatherLatencies();
   }
 
   private MediaElement connectMediaElements(MediaElement input, String filterId,
@@ -430,6 +474,12 @@ public class UserSession {
     log.info("[Session number {} - WS session {}] Releasing viewer", sessionNumber,
         wsSession.getId());
 
+    if (latencyThread != null) {
+      log.debug("[Session number {} - WS session {}] Releasing latencies thread", sessionNumber,
+          wsSession.getId());
+      latencyThread.interrupt();
+    }
+
     if (filter != null) {
       log.debug("[Session number {} - WS session {}] Releasing filter", sessionNumber,
           wsSession.getId());
@@ -515,6 +565,10 @@ public class UserSession {
 
   public String getSessionNumber() {
     return sessionNumber;
+  }
+
+  public List<Double> getLatencies() {
+    return latencies;
   }
 
 }

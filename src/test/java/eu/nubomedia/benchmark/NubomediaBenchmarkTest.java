@@ -18,6 +18,8 @@ package eu.nubomedia.benchmark;
 import static org.kurento.commons.PropertiesManager.getProperty;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -42,6 +44,11 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.Select;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.supercsv.io.CsvListWriter;
+import org.supercsv.prefs.CsvPreference;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 /**
  * NUBOMEDIA test.
@@ -63,7 +70,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final int FAKE_CLIENTS_PER_KMS_DEFAULT = 75;
 
   public static final String SESSION_PLAYTIME_PROP = "session.play.time";
-  public static final int SESSION_PLAYTIME_DEFAULT = 10;
+  public static final int SESSION_PLAYTIME_DEFAULT = 5;
   public static final String SESSION_RATE_PROP = "session.rate.time";
   public static final int SESSION_RATE_DEFAULT = 1000;
   public static final String SESSIONS_NUMBER_PROP = "sessions.number";
@@ -288,28 +295,47 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getPresenter(index).getBrowser().getWebDriver().findElement(By.id("stop")).click();
     getViewer(index).getBrowser().getWebDriver().findElement(By.id("stop")).click();
 
+    // Get latency inside media pipeline (from KMS)
+    String latenciesViewer =
+        (String) getViewer(index).getBrowser().executeScriptAndWaitOutput("return latencies;");
+    Type listType = new TypeToken<List<Double>>() {
+    }.getType();
+    List<Double> listLatencies = new Gson().fromJson(latenciesViewer, listType);
+    String pipelienLatencyCsvFile =
+        outputFolder + this.getClass().getSimpleName() + "-session" + index + "-pipeline.csv";
+    CsvListWriter pipelineLatenciesCsv = new CsvListWriter(new FileWriter(pipelienLatencyCsvFile),
+        CsvPreference.STANDARD_PREFERENCE);
+    pipelineLatenciesCsv.write("pipelineLatencyNs"); // header
+    for (Double value : listLatencies) {
+      pipelineLatenciesCsv.write(value);
+    }
+    pipelineLatenciesCsv.close();
+
     // Close browsers
     log.info("[Session {}] Close browsers", index);
     getPresenter(index).close();
     getViewer(index).close();
 
     // Process data and write latency/statistics
-    String latencyCsvFileSuffix = getSsim || getPsnr ? "-latency" : "";
-    String latencyCsvFile = outputFolder + this.getClass().getSimpleName() + "-session" + index
-        + latencyCsvFileSuffix + ".csv";
+    String latencyCsvFile =
+        outputFolder + this.getClass().getSimpleName() + "-session" + index + "-stats.csv";
     log.info("[Session {}] Calulating latency and collecting stats", index);
     processDataToCsv(latencyCsvFile, presenterMap, viewerMap);
+    String latencyCsvFileSuffix = getSsim || getPsnr ? "-latency" : "";
+    String finalCsvFile1 = outputFolder + this.getClass().getSimpleName() + "-session" + index
+        + latencyCsvFileSuffix + ".csv";
+    mergeCsvs(latencyCsvFile, pipelienLatencyCsvFile, finalCsvFile1, 1, 0, null, true);
 
     // Process data and write quality metrics
     latencyCsvFileSuffix = getPsnr ? "-latency_and_ssim" : "";
-    String finalCsvFile = outputFolder + this.getClass().getSimpleName() + "-session" + index
+    String finalCsvFile2 = outputFolder + this.getClass().getSimpleName() + "-session" + index
         + latencyCsvFileSuffix + ".csv";
     if (getSsim) {
       log.info("[Session {}] Calculating quality of video (SSIM)", index);
       String ssimCsvFile =
           outputFolder + this.getClass().getSimpleName() + "-session" + index + "-ssim.csv";
       getSsim(presenterFileRec, viewerFileRec, ssimCsvFile);
-      mergeCsvs(latencyCsvFile, ssimCsvFile, finalCsvFile, 1, 1, "SSIM", true);
+      mergeCsvs(finalCsvFile1, ssimCsvFile, finalCsvFile2, 2, 1, "SSIM", true);
     }
     if (getPsnr) {
       log.info("[Session {}] Calculating quality of video (PSNR)", index);
@@ -317,10 +343,10 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
           outputFolder + this.getClass().getSimpleName() + "-session" + index + "-psnr.csv";
       getPsnr(presenterFileRec, viewerFileRec, psnrCsvFile);
 
-      int inputIndex = getSsim ? 2 : 1;
-      String inputFile = getSsim ? finalCsvFile : latencyCsvFile;
-      finalCsvFile = outputFolder + this.getClass().getSimpleName() + "-session" + index + ".csv";
-      mergeCsvs(inputFile, psnrCsvFile, finalCsvFile, inputIndex, 1, "PSNR", true);
+      int inputIndex = getSsim ? 3 : 2;
+      String inputFile = getSsim ? finalCsvFile2 : finalCsvFile1;
+      finalCsvFile2 = outputFolder + this.getClass().getSimpleName() + "-session" + index + ".csv";
+      mergeCsvs(inputFile, psnrCsvFile, finalCsvFile2, inputIndex, 1, "PSNR", true);
     }
 
     log.info("[Session {}] End of test", index);

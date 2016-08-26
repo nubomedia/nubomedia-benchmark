@@ -16,6 +16,7 @@
 package eu.nubomedia.benchmark;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,6 +28,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
@@ -167,6 +169,11 @@ public class BenchmarkHandler extends TextWebSocketHandler {
           sendMessage(viewer.getWebSocketSession(), sessionNumber,
               new TextMessage(response.toString()));
 
+          // Send latencies
+          List<Double> latencies =
+              viewersPerPresenter.get(viewer.getWebSocketSession().getId()).getLatencies();
+          sendStopResponse(viewer.getWebSocketSession(), viewer.getSessionNumber(), latencies);
+
           // Release viewer
           viewersPerPresenter.get(viewer.getWebSocketSession().getId()).releaseViewer();
           viewersPerPresenter.remove(viewer.getWebSocketSession().getId());
@@ -183,7 +190,12 @@ public class BenchmarkHandler extends TextWebSocketHandler {
 
     } else if (viewers.containsKey(sessionNumber)
         && viewers.get(sessionNumber).containsKey(wsSessionId)) {
-      // Case 2. Stop arrive from presenter
+      // Case 2. Stop arrive from viewer
+
+      // Send latencies
+      List<Double> latencies = viewers.get(sessionNumber).get(wsSessionId).getLatencies();
+      sendStopResponse(wsSession, sessionNumber, latencies);
+
       viewersPerPresenter = viewers.get(sessionNumber);
       logViewers(sessionNumber, wsSessionId, viewersPerPresenter);
       viewersPerPresenter.get(wsSessionId).releaseViewer();
@@ -191,6 +203,17 @@ public class BenchmarkHandler extends TextWebSocketHandler {
     }
 
     logViewers(sessionNumber, wsSessionId, viewersPerPresenter);
+  }
+
+  private void sendStopResponse(WebSocketSession wsSession, String sessionNumber,
+      List<Double> latencies) {
+    log.info("[Session number {} - WS session {}] Sending stopResponse message to viewer",
+        sessionNumber, wsSession.getId());
+
+    JsonObject stopResponse = new JsonObject();
+    stopResponse.addProperty("id", "stopResponse");
+    stopResponse.addProperty("latencies", new Gson().toJson(latencies));
+    sendMessage(wsSession, sessionNumber, new TextMessage(stopResponse.toString()));
   }
 
   private void logViewers(String sessionNumber, String wsSessionId,

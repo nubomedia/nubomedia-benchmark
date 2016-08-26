@@ -16,6 +16,7 @@
 var ws = new WebSocket('wss://' + location.host + '/benchmark');
 var video;
 var webRtcPeer;
+var latencies;
 
 window.onload = function() {
 	console = new Console();
@@ -45,6 +46,11 @@ ws.onmessage = function(message) {
 		console.error("Error message from server: " + parsedMessage.message);
 	case 'stopCommunication':
 		dispose();
+		break;
+	case 'stopResponse':
+		if (parsedMessage.latencies) {
+			latencies = parsedMessage.latencies;
+		}
 		break;
 	case 'iceCandidate':
 		webRtcPeer.addIceCandidate(parsedMessage.candidate, function(error) {
