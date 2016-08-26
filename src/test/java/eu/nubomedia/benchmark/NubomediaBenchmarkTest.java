@@ -63,7 +63,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final int FAKE_CLIENTS_PER_KMS_DEFAULT = 75;
 
   public static final String SESSION_PLAYTIME_PROP = "session.play.time";
-  public static final int SESSION_PLAYTIME_DEFAULT = 0;
+  public static final int SESSION_PLAYTIME_DEFAULT = 10;
   public static final String SESSION_RATE_PROP = "session.rate.time";
   public static final int SESSION_RATE_DEFAULT = 1000;
   public static final String SESSIONS_NUMBER_PROP = "sessions.number";
@@ -79,13 +79,16 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
       FAKE_CLIENTS_NUMBER_DEFAULT * (FAKE_CLIENTS_RATE_DEFAULT / 1000);
   public static final String FAKE_CLIENTS_KMS_POINTS_PROP = "fake.clients.kms.points";
   public static final int FAKE_CLIENTS_KMS_POINTS_DEFAULT = 200;
-  public static final String VIDEO_QUALITY_PROP = "analyze.video.quality";
-  public static final boolean VIDEO_QUALITY_DEFAULT = false;
+  public static final String VIDEO_QUALITY_SSIM_PROP = "video.quality.ssim";
+  public static final boolean VIDEO_QUALITY_SSIM_DEFAULT = false;
+  public static final String VIDEO_QUALITY_PSNR_PROP = "video.quality.psnr";
+  public static final boolean VIDEO_QUALITY_PSNR_DEFAULT = false;
   public static final String OUTPUT_FOLDER_PROP = "output.folder";
   public static final String OUTPUT_FOLDER_DEFAULT = ".";
 
   public int extraTimePerFakeClients = 0;
-  public boolean analyzeVideoQuality = getProperty(VIDEO_QUALITY_PROP, VIDEO_QUALITY_DEFAULT);
+  public boolean getSsim = getProperty(VIDEO_QUALITY_SSIM_PROP, VIDEO_QUALITY_SSIM_DEFAULT);
+  public boolean getPsnr = getProperty(VIDEO_QUALITY_PSNR_PROP, VIDEO_QUALITY_PSNR_DEFAULT);
   public String outputFolder = getProperty(OUTPUT_FOLDER_PROP, OUTPUT_FOLDER_DEFAULT);
 
   @Parameters(name = "{index}: {0}")
@@ -290,17 +293,35 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getPresenter(index).close();
     getViewer(index).close();
 
-    // Process data and write quality metrics
-    if (analyzeVideoQuality) {
-      log.info("[Session {}] Calculating quality of video", index);
-      getQuality(presenterFileRec, viewerFileRec,
-          outputFolder + this.getClass().getSimpleName() + "-session" + index + "-qov.csv");
-    }
-
     // Process data and write latency/statistics
+    String latencyCsvFileSuffix = getSsim || getPsnr ? "-latency" : "";
+    String latencyCsvFile = outputFolder + this.getClass().getSimpleName() + "-session" + index
+        + latencyCsvFileSuffix + ".csv";
     log.info("[Session {}] Calulating latency and collecting stats", index);
-    processDataToCsv(outputFolder + this.getClass().getSimpleName() + "-session" + index + ".csv",
-        presenterMap, viewerMap);
+    processDataToCsv(latencyCsvFile, presenterMap, viewerMap);
+
+    // Process data and write quality metrics
+    latencyCsvFileSuffix = getPsnr ? "-latency_and_ssim" : "";
+    String finalCsvFile = outputFolder + this.getClass().getSimpleName() + "-session" + index
+        + latencyCsvFileSuffix + ".csv";
+    if (getSsim) {
+      log.info("[Session {}] Calculating quality of video (SSIM)", index);
+      String ssimCsvFile =
+          outputFolder + this.getClass().getSimpleName() + "-session" + index + "-ssim.csv";
+      getSsim(presenterFileRec, viewerFileRec, ssimCsvFile);
+      mergeCsvs(latencyCsvFile, ssimCsvFile, finalCsvFile, 1, 1, "SSIM", true);
+    }
+    if (getPsnr) {
+      log.info("[Session {}] Calculating quality of video (PSNR)", index);
+      String psnrCsvFile =
+          outputFolder + this.getClass().getSimpleName() + "-session" + index + "-psnr.csv";
+      getPsnr(presenterFileRec, viewerFileRec, psnrCsvFile);
+
+      int inputIndex = getSsim ? 2 : 1;
+      String inputFile = getSsim ? finalCsvFile : latencyCsvFile;
+      finalCsvFile = outputFolder + this.getClass().getSimpleName() + "-session" + index + ".csv";
+      mergeCsvs(inputFile, psnrCsvFile, finalCsvFile, inputIndex, 1, "PSNR", true);
+    }
 
     log.info("[Session {}] End of test", index);
   }
