@@ -16,7 +16,8 @@
 var ws = new WebSocket('wss://' + location.host + '/benchmark');
 var video;
 var webRtcPeer;
-var latencies;
+var mediaPipelineLatencies;
+var filterLatencies;
 
 window.onload = function() {
 	console = new Console();
@@ -48,8 +49,9 @@ ws.onmessage = function(message) {
 		dispose();
 		break;
 	case 'stopResponse':
-		if (parsedMessage.latencies) {
-			latencies = parsedMessage.latencies;
+		if (parsedMessage.mediaPipelineLatencies) {
+			mediaPipelineLatencies = parsedMessage.mediaPipelineLatencies;
+			filterLatencies = parsedMessage.filterLatencies;
 		}
 		break;
 	case 'iceCandidate':

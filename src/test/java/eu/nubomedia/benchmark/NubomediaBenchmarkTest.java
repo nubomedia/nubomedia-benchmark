@@ -301,17 +301,19 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getViewer(index).getBrowser().getWebDriver().findElement(By.id("stop")).click();
 
     // Get latency inside media pipeline (from KMS)
-    String latenciesViewer =
-        (String) getViewer(index).getBrowser().executeScriptAndWaitOutput("return latencies;");
+    String mediaPipelineLatencies = (String) getViewer(index).getBrowser()
+        .executeScriptAndWaitOutput("return mediaPipelineLatencies;");
+
     Type listType = new TypeToken<List<Double>>() {
     }.getType();
-    List<Double> listLatencies = new Gson().fromJson(latenciesViewer, listType);
+    List<Double> listMediaPipelinesLatencies =
+        new Gson().fromJson(mediaPipelineLatencies, listType);
     String pipelienLatencyCsvFile =
         outputFolder + this.getClass().getSimpleName() + "-session" + index + "-pipeline.csv";
     CsvListWriter pipelineLatenciesCsv = new CsvListWriter(new FileWriter(pipelienLatencyCsvFile),
         CsvPreference.STANDARD_PREFERENCE);
     pipelineLatenciesCsv.write("pipelineLatencyNs"); // header
-    for (Double value : listLatencies) {
+    for (Double value : listMediaPipelinesLatencies) {
       pipelineLatenciesCsv.write(value);
     }
     pipelineLatenciesCsv.close();

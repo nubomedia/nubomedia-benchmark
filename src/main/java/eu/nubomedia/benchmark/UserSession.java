@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
+import org.kurento.client.ElementStats;
 import org.kurento.client.EndpointStats;
 import org.kurento.client.EventListener;
 import org.kurento.client.FaceOverlayFilter;
@@ -80,7 +81,8 @@ public class UserSession {
   private Map<String, List<MediaElement>> mediaElementsInFakeMediaPipelineMap =
       new ConcurrentSkipListMap<>();
   private Queue<String> fakeKmsUriQueue;
-  private List<Double> latencies = new ArrayList<>();
+  private List<Double> mediaPipelineLatencies = new ArrayList<>();
+  private List<Double> filterLatencies = new ArrayList<>();
   private Thread latencyThread;
 
   public UserSession(WebSocketSession wsSession, String sessionNumber, BenchmarkHandler handler) {
@@ -137,11 +139,39 @@ public class UserSession {
                 if (s instanceof EndpointStats) {
                   List<MediaLatencyStat> e2eLatency = ((EndpointStats) s).getE2ELatency();
                   if (!e2eLatency.isEmpty()) {
-                    latencies.add(e2eLatency.get(0).getAvg()); // nano seconds
+                    mediaPipelineLatencies.add(e2eLatency.get(0).getAvg()); // nano seconds
                   }
                 }
               }
             }
+
+            // Filter latency
+            if (filter != null) {
+              double l1 = 0;
+              Map<String, Stats> filterStats = filter.getStats(MediaType.VIDEO);
+              for (Stats s : filterStats.values()) {
+                if (s instanceof ElementStats) {
+                  List<MediaLatencyStat> inputLatency = ((ElementStats) s).getInputLatency();
+                  if (!inputLatency.isEmpty()) {
+                    l1 = inputLatency.get(0).getAvg();
+                  }
+                }
+              }
+              double l2 = 0;
+              if (webRtcEndpoint != null) {
+                Map<String, Stats> webRtcEndpointStats = webRtcEndpoint.getStats(MediaType.VIDEO);
+                for (Stats s : webRtcEndpointStats.values()) {
+                  if (s instanceof ElementStats) {
+                    List<MediaLatencyStat> inputLatency = ((ElementStats) s).getInputLatency();
+                    if (!inputLatency.isEmpty()) {
+                      l2 = inputLatency.get(0).getAvg();
+                    }
+                  }
+                }
+              }
+              filterLatencies.add(l2 - l1); // nano seconds
+            }
+
           } catch (Exception e) {
             log.debug("Exception gathering videoE2ELatency {}", e.getMessage());
           } finally {
@@ -567,8 +597,12 @@ public class UserSession {
     return sessionNumber;
   }
 
-  public List<Double> getLatencies() {
-    return latencies;
+  public List<Double> getMediaPipelineLatencies() {
+    return mediaPipelineLatencies;
+  }
+
+  public List<Double> getFilterLatencies() {
+    return filterLatencies;
   }
 
 }

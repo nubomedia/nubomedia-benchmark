@@ -170,9 +170,12 @@ public class BenchmarkHandler extends TextWebSocketHandler {
               new TextMessage(response.toString()));
 
           // Send latencies
-          List<Double> latencies =
-              viewersPerPresenter.get(viewer.getWebSocketSession().getId()).getLatencies();
-          sendStopResponse(viewer.getWebSocketSession(), viewer.getSessionNumber(), latencies);
+          List<Double> mediaPipelineLatencies = viewersPerPresenter
+              .get(viewer.getWebSocketSession().getId()).getMediaPipelineLatencies();
+          List<Double> filterLatencies =
+              viewersPerPresenter.get(viewer.getWebSocketSession().getId()).getFilterLatencies();
+          sendStopResponse(viewer.getWebSocketSession(), viewer.getSessionNumber(),
+              mediaPipelineLatencies, filterLatencies);
 
           // Release viewer
           viewersPerPresenter.get(viewer.getWebSocketSession().getId()).releaseViewer();
@@ -193,8 +196,11 @@ public class BenchmarkHandler extends TextWebSocketHandler {
       // Case 2. Stop arrive from viewer
 
       // Send latencies
-      List<Double> latencies = viewers.get(sessionNumber).get(wsSessionId).getLatencies();
-      sendStopResponse(wsSession, sessionNumber, latencies);
+      List<Double> mediaPipelineLatencies =
+          viewers.get(sessionNumber).get(wsSessionId).getMediaPipelineLatencies();
+      List<Double> filterLatencies =
+          viewers.get(sessionNumber).get(wsSessionId).getMediaPipelineLatencies();
+      sendStopResponse(wsSession, sessionNumber, mediaPipelineLatencies, filterLatencies);
 
       viewersPerPresenter = viewers.get(sessionNumber);
       logViewers(sessionNumber, wsSessionId, viewersPerPresenter);
@@ -206,13 +212,14 @@ public class BenchmarkHandler extends TextWebSocketHandler {
   }
 
   private void sendStopResponse(WebSocketSession wsSession, String sessionNumber,
-      List<Double> latencies) {
+      List<Double> mediaPipelineLatencies, List<Double> filterLatencies) {
     log.info("[Session number {} - WS session {}] Sending stopResponse message to viewer",
         sessionNumber, wsSession.getId());
 
     JsonObject stopResponse = new JsonObject();
     stopResponse.addProperty("id", "stopResponse");
-    stopResponse.addProperty("latencies", new Gson().toJson(latencies));
+    stopResponse.addProperty("mediaPipelineLatencies", new Gson().toJson(mediaPipelineLatencies));
+    stopResponse.addProperty("filterLatencies", new Gson().toJson(filterLatencies));
     sendMessage(wsSession, sessionNumber, new TextMessage(stopResponse.toString()));
   }
 
