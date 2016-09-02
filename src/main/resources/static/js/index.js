@@ -157,6 +157,7 @@ function onOfferViewer(error, offerSdp) {
 	var fakePoints = document.getElementById('fakePoints').value;
 	var fakeClientsPerInstance = document
 			.getElementById('fakeClientsPerInstance').value;
+	var rateKmsLatency = document.getElementById('rateKmsLatency').value;
 
 	var message = {
 		id : 'viewer',
@@ -168,7 +169,8 @@ function onOfferViewer(error, offerSdp) {
 		timeBetweenClients : timeBetweenClients,
 		playTime : playTime,
 		fakePoints : fakePoints,
-		fakeClientsPerInstance : fakeClientsPerInstance
+		fakeClientsPerInstance : fakeClientsPerInstance,
+		rateKmsLatency : rateKmsLatency
 	}
 	sendMessage(message);
 }

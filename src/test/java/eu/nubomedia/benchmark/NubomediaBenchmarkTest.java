@@ -86,6 +86,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
       FAKE_CLIENTS_NUMBER_DEFAULT * (FAKE_CLIENTS_RATE_DEFAULT / 1000);
   public static final String FAKE_CLIENTS_KMS_POINTS_PROP = "fake.clients.kms.points";
   public static final int FAKE_CLIENTS_KMS_POINTS_DEFAULT = 200;
+  public static final String RATE_KMS_LATENCY_PROP = "rate.kms.latency";
+  public static final int RATE_KMS_LATENCY_DEFAULT = 1000;
   public static final String VIDEO_QUALITY_SSIM_PROP = "video.quality.ssim";
   public static final boolean VIDEO_QUALITY_SSIM_DEFAULT = false;
   public static final String VIDEO_QUALITY_PSNR_PROP = "video.quality.psnr";
@@ -152,6 +154,12 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
         WebElement timeBetweenClientsWe = webDriver.findElement(By.id("timeBetweenClients"));
         timeBetweenClientsWe.clear();
         timeBetweenClientsWe.sendKeys(String.valueOf(timeBetweenClients));
+
+        // Rate KMS latency
+        int rateKmsLatency = getProperty(RATE_KMS_LATENCY_PROP, RATE_KMS_LATENCY_DEFAULT);
+        WebElement rateKmsLatencyWe = webDriver.findElement(By.id("rateKmsLatency"));
+        rateKmsLatencyWe.clear();
+        rateKmsLatencyWe.sendKeys(String.valueOf(rateKmsLatency));
 
         if (fakeClientsInt > 0) {
           extraTimePerFakeClients = fakeClientsInt * timeBetweenClients / 1000;

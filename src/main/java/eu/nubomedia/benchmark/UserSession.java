@@ -124,7 +124,7 @@ public class UserSession {
 
   }
 
-  private Thread gatherLatencies() {
+  private Thread gatherLatencies(final int rateKmsLatency) {
     mediaPipeline.setLatencyStats(true);
 
     Thread thread = new Thread(new Runnable() {
@@ -176,7 +176,7 @@ public class UserSession {
             log.debug("Exception gathering videoE2ELatency {}", e.getMessage());
           } finally {
             try {
-              Thread.sleep(1000); // 1 sample per second
+              Thread.sleep(rateKmsLatency);
             } catch (InterruptedException e) {
               log.debug("Interrupted thread for gathering videoE2ELatency");
             }
@@ -194,6 +194,8 @@ public class UserSession {
     String processing = jsonMessage.get("processing").getAsString();
     String sdpOffer = jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString();
     int fakeClients = jsonMessage.getAsJsonPrimitive("fakeClients").getAsInt();
+    int rateKmsLatency = jsonMessage.getAsJsonPrimitive("rateKmsLatency").getAsInt();
+
     log.info("[Session number {} - WS session {}] Init viewer(s) with {} filtering", sessionNumber,
         wsSession.getId(), processing);
 
@@ -220,7 +222,7 @@ public class UserSession {
     }
 
     // Viewer videoE2ELatency
-    latencyThread = gatherLatencies();
+    latencyThread = gatherLatencies(rateKmsLatency);
   }
 
   private MediaElement connectMediaElements(MediaElement input, String filterId,
