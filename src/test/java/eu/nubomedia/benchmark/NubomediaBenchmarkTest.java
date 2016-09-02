@@ -326,8 +326,11 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     // Add media pipeline and filter latencies to result table
     int columnIndex = 1;
     addColumnsToTable(csvTable, mediaPipelineLatencies, columnIndex);
-    columnIndex++;
-    addColumnsToTable(csvTable, filterLatencies, columnIndex);
+    System.err.println(filterLatencies);
+    if (!filterLatencies.values().isEmpty()) {
+      columnIndex++;
+      addColumnsToTable(csvTable, filterLatencies, columnIndex);
+    }
 
     // Get quality metrics (SSIM, PSNR)
     if (getSsim) {
