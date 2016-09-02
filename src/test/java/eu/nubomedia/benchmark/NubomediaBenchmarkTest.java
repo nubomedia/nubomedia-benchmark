@@ -18,7 +18,6 @@ package eu.nubomedia.benchmark;
 import static org.kurento.commons.PropertiesManager.getProperty;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collection;
@@ -44,9 +43,10 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.Select;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.supercsv.io.CsvListWriter;
-import org.supercsv.prefs.CsvPreference;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Table;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -300,63 +300,58 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getPresenter(index).getBrowser().getWebDriver().findElement(By.id("stop")).click();
     getViewer(index).getBrowser().getWebDriver().findElement(By.id("stop")).click();
 
-    // Get latency inside media pipeline (from KMS)
-    String mediaPipelineLatencies = (String) getViewer(index).getBrowser()
-        .executeScriptAndWaitOutput("return mediaPipelineLatencies;");
-
-    Type listType = new TypeToken<List<Double>>() {
-    }.getType();
-    List<Double> listMediaPipelinesLatencies =
-        new Gson().fromJson(mediaPipelineLatencies, listType);
-    String pipelienLatencyCsvFile =
-        outputFolder + this.getClass().getSimpleName() + "-session" + index + "-pipeline.csv";
-    CsvListWriter pipelineLatenciesCsv = new CsvListWriter(new FileWriter(pipelienLatencyCsvFile),
-        CsvPreference.STANDARD_PREFERENCE);
-    pipelineLatenciesCsv.write("pipelineLatencyNs"); // header
-    for (Double value : listMediaPipelinesLatencies) {
-      pipelineLatenciesCsv.write(value);
-    }
-    pipelineLatenciesCsv.close();
+    // Get latencies from KMS (media pipeline and filter)
+    Multimap<String, Object> mediaPipelineLatencies =
+        getLatencies(getViewer(index).getBrowser(), "mediaPipelineLatencies", "pipelineLatencyNs");
+    Multimap<String, Object> filterLatencies =
+        getLatencies(getViewer(index).getBrowser(), "filterLatencies", "filterLatencyNs");
 
     // Close browsers
     log.info("[Session {}] Close browsers", index);
     getPresenter(index).close();
     getViewer(index).close();
 
-    // Process data and write latency/statistics
-    String latencyCsvFile =
-        outputFolder + this.getClass().getSimpleName() + "-session" + index + "-stats.csv";
+    // Get E2E latency and statistics
     log.info("[Session {}] Calulating latency and collecting stats", index);
-    processDataToCsv(latencyCsvFile, presenterMap, viewerMap);
-    String latencyCsvFileSuffix = getSsim || getPsnr ? "-latency" : "";
-    String finalCsvFile1 = outputFolder + this.getClass().getSimpleName() + "-session" + index
-        + latencyCsvFileSuffix + ".csv";
-    mergeCsvs(latencyCsvFile, pipelienLatencyCsvFile, finalCsvFile1, 1, 0, null, true);
+    Table<Integer, Integer, String> csvTable = processOcrAndStats(presenterMap, viewerMap);
 
-    // Process data and write quality metrics
-    latencyCsvFileSuffix = getPsnr ? "-latency_and_ssim" : "";
-    String finalCsvFile2 = outputFolder + this.getClass().getSimpleName() + "-session" + index
-        + latencyCsvFileSuffix + ".csv";
+    // Add media pipeline and filter latencies to result table
+    int columnIndex = 1;
+    addColumnsToTable(csvTable, mediaPipelineLatencies, columnIndex);
+    columnIndex++;
+    addColumnsToTable(csvTable, filterLatencies, columnIndex);
+
+    // Get quality metrics (SSIM, PSNR)
     if (getSsim) {
       log.info("[Session {}] Calculating quality of video (SSIM)", index);
-      String ssimCsvFile =
-          outputFolder + this.getClass().getSimpleName() + "-session" + index + "-ssim.csv";
-      getSsim(presenterFileRec, viewerFileRec, ssimCsvFile);
-      mergeCsvs(finalCsvFile1, ssimCsvFile, finalCsvFile2, 2, 1, "SSIM", true);
+      Multimap<String, Object> ssim = getSsim(presenterFileRec, viewerFileRec);
+      columnIndex++;
+      addColumnsToTable(csvTable, ssim, columnIndex);
     }
     if (getPsnr) {
       log.info("[Session {}] Calculating quality of video (PSNR)", index);
-      String psnrCsvFile =
-          outputFolder + this.getClass().getSimpleName() + "-session" + index + "-psnr.csv";
-      getPsnr(presenterFileRec, viewerFileRec, psnrCsvFile);
-
-      int inputIndex = getSsim ? 3 : 2;
-      String inputFile = getSsim ? finalCsvFile2 : finalCsvFile1;
-      finalCsvFile2 = outputFolder + this.getClass().getSimpleName() + "-session" + index + ".csv";
-      mergeCsvs(inputFile, psnrCsvFile, finalCsvFile2, inputIndex, 1, "PSNR", true);
+      Multimap<String, Object> psnr = getPsnr(presenterFileRec, viewerFileRec);
+      columnIndex++;
+      addColumnsToTable(csvTable, psnr, columnIndex);
     }
 
+    // Write CSV
+    String outputCsvFile =
+        outputFolder + this.getClass().getSimpleName() + "-session" + index + ".csv";
+    writeCSV(outputCsvFile, csvTable);
+
     log.info("[Session {}] End of test", index);
+  }
+
+  private Multimap<String, Object> getLatencies(Browser browser, String jsVarName,
+      String headerName) {
+    String latenciesStr = (String) browser.executeScriptAndWaitOutput("return " + jsVarName + ";");
+    Type listType = new TypeToken<List<Object>>() {
+    }.getType();
+    List<Object> latenciesList = new Gson().fromJson(latenciesStr, listType);
+    Multimap<String, Object> latenciesMultimap = ArrayListMultimap.create();
+    latenciesMultimap.putAll(headerName, latenciesList);
+    return latenciesMultimap;
   }
 
 }
