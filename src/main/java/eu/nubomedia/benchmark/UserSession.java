@@ -139,7 +139,7 @@ public class UserSession {
                 if (s instanceof EndpointStats) {
                   List<MediaLatencyStat> e2eLatency = ((EndpointStats) s).getE2ELatency();
                   if (!e2eLatency.isEmpty()) {
-                    mediaPipelineLatencies.add(e2eLatency.get(0).getAvg()); // nano seconds
+                    mediaPipelineLatencies.add(e2eLatency.get(0).getAvg() / 1000); // microseconds
                   }
                 }
               }
@@ -169,7 +169,7 @@ public class UserSession {
                   }
                 }
               }
-              filterLatencies.add(l2 - l1); // nano seconds
+              filterLatencies.add((l2 - l1) / 1000); // microseconds
             }
 
           } catch (Exception e) {

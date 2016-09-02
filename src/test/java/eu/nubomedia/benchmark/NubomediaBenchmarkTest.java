@@ -301,10 +301,10 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getViewer(index).getBrowser().getWebDriver().findElement(By.id("stop")).click();
 
     // Get latencies from KMS (media pipeline and filter)
-    Multimap<String, Object> mediaPipelineLatencies =
-        getLatencies(getViewer(index).getBrowser(), "mediaPipelineLatencies", "pipelineLatencyNs");
+    Multimap<String, Object> mediaPipelineLatencies = getLatencies(getViewer(index).getBrowser(),
+        "mediaPipelineLatencies", "pipelineLatencyMicroSec");
     Multimap<String, Object> filterLatencies =
-        getLatencies(getViewer(index).getBrowser(), "filterLatencies", "filterLatencyNs");
+        getLatencies(getViewer(index).getBrowser(), "filterLatencies", "filterLatencyMicroSec");
 
     // Close browsers
     log.info("[Session {}] Close browsers", index);
