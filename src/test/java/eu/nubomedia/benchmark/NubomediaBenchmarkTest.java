@@ -298,10 +298,13 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
 
     // Store recordings
     log.info("[Session {}] Store recordings", index);
-    File presenterFileRec =
-        getPresenter(index).getRecording(outputFolder + "presenter-session" + index + ".webm");
-    File viewerFileRec =
-        getViewer(index).getRecording(outputFolder + "viewer-session" + index + ".webm");
+    String presenterRecName = "presenter-session" + index + ".webm";
+    String viewerRecName = "viewer-session" + index + ".webm";
+    File presenterFileRec = getPresenter(index).getRecording(outputFolder + presenterRecName);
+    File viewerFileRec = getViewer(index).getRecording(outputFolder + viewerRecName);
+    // Uncomment this line to use alternative recording method (useful for long recording)
+    // File presenterFileRec = getPresenter(index).saveRecordingToDisk(presenterRecName);
+    // File viewerFileRec = getViewer(index).saveRecordingToDisk(viewerRecName);
 
     // Stop presenter and viewer(s)
     log.info("[Session {}] Stop presenter and viewer(s)", index);
