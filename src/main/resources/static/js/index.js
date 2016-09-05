@@ -112,11 +112,13 @@ function onOfferPresenter(error, offerSdp) {
 
 	var sessionNumber = document.getElementById('sessionNumber').value;
 	var loadPoints = document.getElementById('loadPoints').value;
+	var bandwidth = document.getElementById('bandwidth').value;
 	var message = {
 		id : 'presenter',
 		sessionNumber : sessionNumber,
 		loadPoints : loadPoints,
-		sdpOffer : offerSdp
+		sdpOffer : offerSdp,
+		bandwidth : bandwidth
 	}
 	sendMessage(message);
 }
@@ -158,6 +160,7 @@ function onOfferViewer(error, offerSdp) {
 	var fakeClientsPerInstance = document
 			.getElementById('fakeClientsPerInstance').value;
 	var rateKmsLatency = document.getElementById('rateKmsLatency').value;
+	var bandwidth = document.getElementById('bandwidth').value;
 
 	var message = {
 		id : 'viewer',
@@ -170,7 +173,8 @@ function onOfferViewer(error, offerSdp) {
 		playTime : playTime,
 		fakePoints : fakePoints,
 		fakeClientsPerInstance : fakeClientsPerInstance,
-		rateKmsLatency : rateKmsLatency
+		rateKmsLatency : rateKmsLatency,
+		bandwidth : bandwidth
 	}
 	sendMessage(message);
 }

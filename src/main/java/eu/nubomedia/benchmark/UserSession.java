@@ -84,11 +84,14 @@ public class UserSession {
   private List<Double> mediaPipelineLatencies = new ArrayList<>();
   private List<Double> filterLatencies = new ArrayList<>();
   private Thread latencyThread;
+  private int bandwidth;
 
-  public UserSession(WebSocketSession wsSession, String sessionNumber, BenchmarkHandler handler) {
+  public UserSession(WebSocketSession wsSession, String sessionNumber, BenchmarkHandler handler,
+      int bandwidth) {
     this.wsSession = wsSession;
     this.sessionNumber = sessionNumber;
     this.handler = handler;
+    this.bandwidth = bandwidth;
   }
 
   public void initPresenter(String sdpOffer, int loadPoints) {
@@ -109,7 +112,7 @@ public class UserSession {
     }
 
     mediaPipeline = kurentoClient.createMediaPipeline();
-    webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
+    webRtcEndpoint = createWebRtcEndpoint(mediaPipeline);
 
     addOnIceCandidateListener();
 
@@ -200,7 +203,7 @@ public class UserSession {
         wsSession.getId(), processing);
 
     mediaPipeline = presenterSession.getMediaPipeline();
-    webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
+    webRtcEndpoint = createWebRtcEndpoint(mediaPipeline);
 
     addOnIceCandidateListener();
 
@@ -400,8 +403,8 @@ public class UserSession {
       fakeKurentoClients.add(fakeKurentoClient);
     }
 
-    final WebRtcEndpoint fakeOutputWebRtc = new WebRtcEndpoint.Builder(mediaPipeline).build();
-    final WebRtcEndpoint fakeBrowser = new WebRtcEndpoint.Builder(fakeMediaPipeline).build();
+    final WebRtcEndpoint fakeOutputWebRtc = createWebRtcEndpoint(mediaPipeline);
+    final WebRtcEndpoint fakeBrowser = createWebRtcEndpoint(fakeMediaPipeline);
 
     MediaElement filter = connectMediaElements(inputWebRtc, filterId, fakeOutputWebRtc);
 
@@ -579,6 +582,15 @@ public class UserSession {
       kurentoClient.destroy();
       kurentoClient = null;
     }
+  }
+
+  private WebRtcEndpoint createWebRtcEndpoint(MediaPipeline mediaPipeline) {
+    WebRtcEndpoint webRtcEndpoint = new WebRtcEndpoint.Builder(mediaPipeline).build();
+    webRtcEndpoint.setMaxVideoSendBandwidth(bandwidth);
+    webRtcEndpoint.setMinVideoSendBandwidth(bandwidth);
+    webRtcEndpoint.setMaxVideoRecvBandwidth(bandwidth);
+    webRtcEndpoint.setMinVideoRecvBandwidth(bandwidth);
+    return webRtcEndpoint;
   }
 
   public WebSocketSession getWebSocketSession() {

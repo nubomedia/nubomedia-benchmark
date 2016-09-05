@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2016 Boni Garcia (http://bonigarcia.github.io/)
+ * (C) Copyright 2016 NUBOMEDIA (http://www.nubomedia.eu)
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the GNU Lesser General Public License
@@ -96,6 +96,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final String OUTPUT_FOLDER_DEFAULT = ".";
   public static final String SERIALIZE_DATA_PROP = "serialize.data";
   public static final boolean SERIALIZE_DATA_DEFAULT = false;
+  public static final String BANDWIDTH_PROP = "webrtc.endpoint.kbps";
+  public static final int BANDWIDTH_DEFAULT = 300;
 
   public int extraTimePerFakeClients = 0;
   public boolean getSsim = getProperty(VIDEO_QUALITY_SSIM_PROP, VIDEO_QUALITY_SSIM_DEFAULT);
@@ -198,6 +200,12 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
             webDriver.findElement(By.id("fakeClientsPerInstance"));
         fakeClientsPerInstanceWe.clear();
         fakeClientsPerInstanceWe.sendKeys(fakeClientsPerInstance);
+
+        // Bandwidth
+        String bandwidth = String.valueOf(getProperty(BANDWIDTH_PROP, BANDWIDTH_DEFAULT));
+        WebElement bandwidthWe = webDriver.findElement(By.id("bandwidth"));
+        bandwidthWe.clear();
+        bandwidthWe.sendKeys(bandwidth);
       }
     }
 
@@ -323,7 +331,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getViewer(index).close();
 
     // Get E2E latency and statistics
-    log.info("[Session {}] Calulating latency and collecting stats", index);
+    log.info("[Session {}] Calculating latency and collecting stats", index);
     Table<Integer, Integer, String> csvTable = processOcrAndStats(presenterMap, viewerMap);
 
     // Add media pipeline and filter latencies to result table

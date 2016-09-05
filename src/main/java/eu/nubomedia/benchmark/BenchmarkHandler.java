@@ -95,7 +95,8 @@ public class BenchmarkHandler extends TextWebSocketHandler {
       sendMessage(wsSession, sessionNumber, new TextMessage(response.toString()));
 
     } else {
-      UserSession presenterSession = new UserSession(wsSession, sessionNumber, this);
+      int bandwidth = jsonMessage.getAsJsonPrimitive("bandwidth").getAsInt();
+      UserSession presenterSession = new UserSession(wsSession, sessionNumber, this, bandwidth);
       presenters.put(sessionNumber, presenterSession);
 
       String sdpOffer = jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString();
@@ -126,7 +127,8 @@ public class BenchmarkHandler extends TextWebSocketHandler {
             + viewersPerPresenter + ". Use a different browser/tab to add additional viewers.");
         sendMessage(wsSession, sessionNumber, new TextMessage(response.toString()));
       } else {
-        UserSession viewerSession = new UserSession(wsSession, sessionNumber, this);
+        int bandwidth = jsonMessage.getAsJsonPrimitive("bandwidth").getAsInt();
+        UserSession viewerSession = new UserSession(wsSession, sessionNumber, this, bandwidth);
         viewersPerPresenter.put(wsSessionId, viewerSession);
 
         viewerSession.initViewer(presenters.get(sessionNumber), jsonMessage);
