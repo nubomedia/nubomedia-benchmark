@@ -97,7 +97,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final String SERIALIZE_DATA_PROP = "serialize.data";
   public static final boolean SERIALIZE_DATA_DEFAULT = false;
   public static final String BANDWIDTH_PROP = "webrtc.endpoint.kbps";
-  public static final int BANDWIDTH_DEFAULT = 300;
+  public static final int BANDWIDTH_DEFAULT = 500;
 
   public int extraTimePerFakeClients = 0;
   public boolean getSsim = getProperty(VIDEO_QUALITY_SSIM_PROP, VIDEO_QUALITY_SSIM_DEFAULT);
