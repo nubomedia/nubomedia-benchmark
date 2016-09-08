@@ -75,6 +75,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final int SESSION_RATE_DEFAULT = 1000;
   public static final String SESSIONS_NUMBER_PROP = "sessions.number";
   public static final int SESSIONS_NUMBER_DEFAULT = 1;
+  public static final String INIT_SESSION_NUMBER_PROP = "init.session.number";
+  public static final int INIT_SESSION_NUMBER_DEFAULT = 0;
   public static final String POINTS_PER_SESSION_PROP = "points.per.session";
   public static final int POINTS_PER_SESSION_DEFAULT = 200;
   public static final String MEDIA_PROCESSING_PROP = "processing";
@@ -122,6 +124,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public void setup() {
     // Set defaults in all browsers
     int sessionsNumber = getProperty(SESSIONS_NUMBER_PROP, SESSIONS_NUMBER_DEFAULT);
+    int initSessionNumber = getProperty(INIT_SESSION_NUMBER_PROP, INIT_SESSION_NUMBER_DEFAULT);
     for (int i = 0; i < sessionsNumber; i++) {
       WebDriver[] webDrivers =
           { getPresenter(i).getBrowser().getWebDriver(), getViewer(i).getBrowser().getWebDriver() };
@@ -130,7 +133,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
         // Session number
         WebElement sessionNumberWe = webDriver.findElement(By.id("sessionNumber"));
         sessionNumberWe.clear();
-        sessionNumberWe.sendKeys(String.valueOf(i));
+        sessionNumberWe.sendKeys(String.valueOf(i + initSessionNumber));
 
         // Points per session
         String pointsPerSession =
