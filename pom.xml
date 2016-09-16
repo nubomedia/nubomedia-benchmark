@@ -46,7 +46,7 @@
 
 	<properties>
 		<!-- Nubomedia -->
-		<nubomedia-media-client.version>1.0.2</nubomedia-media-client.version>
+		<nubomedia-media-client.version>6.5.0</nubomedia-media-client.version>
 
 		<!-- Main class -->
 		<start-class>eu.nubomedia.benchmark.BenchmarkApp</start-class>
