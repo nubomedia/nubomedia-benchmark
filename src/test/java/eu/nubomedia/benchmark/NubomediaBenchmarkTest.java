@@ -100,12 +100,20 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final boolean SERIALIZE_DATA_DEFAULT = false;
   public static final String BANDWIDTH_PROP = "webrtc.endpoint.kbps";
   public static final int BANDWIDTH_DEFAULT = 500;
+  public static final String NATIVE_DOWNLOAD_METHOD_PROP = "native.download.method";
+  public static final boolean NATIVE_DOWNLOAD_METHOD_DEFAULT = false;
+  public static final String DOWNLOADS_FOLDER_NAME_PROP = "download.folder.name";
+  public static final String DOWNLOADS_FOLDER_NAME_DEFAULT = "Downloads";
 
   public int extraTimePerFakeClients = 0;
   public boolean getSsim = getProperty(VIDEO_QUALITY_SSIM_PROP, VIDEO_QUALITY_SSIM_DEFAULT);
   public boolean getPsnr = getProperty(VIDEO_QUALITY_PSNR_PROP, VIDEO_QUALITY_PSNR_DEFAULT);
   public String outputFolder = getProperty(OUTPUT_FOLDER_PROP, OUTPUT_FOLDER_DEFAULT);
   public boolean serializeData = getProperty(SERIALIZE_DATA_PROP, SERIALIZE_DATA_DEFAULT);
+  public boolean nativeDownload =
+      getProperty(NATIVE_DOWNLOAD_METHOD_PROP, NATIVE_DOWNLOAD_METHOD_DEFAULT);
+  public String downloadsFolderName =
+      getProperty(DOWNLOADS_FOLDER_NAME_PROP, DOWNLOADS_FOLDER_NAME_DEFAULT);
 
   @Parameters(name = "{index}: {0}")
   public static Collection<Object[]> data() {
@@ -275,8 +283,10 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getViewer(index).startOcr();
 
     // Start recordings
-    getPresenter(index).startRecording("webRtcPeer.peerConnection.getLocalStreams()[0]");
-    getViewer(index).startRecording("webRtcPeer.peerConnection.getRemoteStreams()[0]");
+    if (getSsim || getPsnr) {
+      getPresenter(index).startRecording("webRtcPeer.peerConnection.getLocalStreams()[0]");
+      getViewer(index).startRecording("webRtcPeer.peerConnection.getRemoteStreams()[0]");
+    }
 
     // Play video
     int playTime = ((sessionsNumber - index - 1) * sessionRateTime / 1000) + sessionPlayTime
@@ -291,9 +301,11 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     Map<String, Map<String, Object>> viewerMap = getViewer(index).getOcrMap();
 
     // Stop recordings
-    log.info("[Session {}] Stop recordings", index);
-    getPresenter(index).stopRecording();
-    getViewer(index).stopRecording();
+    if (getSsim || getPsnr) {
+      log.info("[Session {}] Stop recordings", index);
+      getPresenter(index).stopRecording();
+      getViewer(index).stopRecording();
+    }
 
     // Serialize data
     if (serializeData) {
@@ -308,14 +320,37 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getViewer(index).endOcr();
 
     // Store recordings
-    log.info("[Session {}] Store recordings", index);
-    String presenterRecName = "presenter-session" + index + ".webm";
-    String viewerRecName = "viewer-session" + index + ".webm";
-    File presenterFileRec = getPresenter(index).getRecording(outputFolder + presenterRecName);
-    File viewerFileRec = getViewer(index).getRecording(outputFolder + viewerRecName);
-    // Uncomment this line to use alternative recording method (useful for long recording)
-    // File presenterFileRec = getPresenter(index).saveRecordingToDisk(presenterRecName);
-    // File viewerFileRec = getViewer(index).saveRecordingToDisk(viewerRecName);
+    File presenterFileRec = null, viewerFileRec = null;
+    if (getSsim || getPsnr) {
+      log.info("[Session {}] Store recordings", index);
+      String presenterRecName = "presenter-session" + index + ".webm";
+      String viewerRecName = "viewer-session" + index + ".webm";
+
+      if (nativeDownload) {
+        String downloadsFolder =
+            System.getProperty("user.home") + File.separator + downloadsFolderName + File.separator;
+
+        // Delete if exists previously (since browsers does not overwrite it)
+        presenterFileRec = new File(downloadsFolder + presenterRecName);
+        if (presenterFileRec.exists()) {
+          log.info("[Session {}] {} already exists ... deleting {} ", index, presenterFileRec,
+              presenterFileRec.delete());
+        }
+        viewerFileRec = new File(downloadsFolder + viewerRecName);
+        if (viewerFileRec.exists()) {
+          log.info("[Session {}] {} already exists ... deleting {} ", index, viewerFileRec,
+              viewerFileRec.delete());
+        }
+
+        presenterFileRec =
+            getPresenter(index).saveRecordingToDisk(presenterRecName, downloadsFolder);
+        viewerFileRec = getViewer(index).saveRecordingToDisk(viewerRecName, downloadsFolder);
+
+      } else {
+        presenterFileRec = getPresenter(index).getRecording(outputFolder + presenterRecName);
+        viewerFileRec = getViewer(index).getRecording(outputFolder + viewerRecName);
+      }
+    }
 
     // Stop presenter and viewer(s)
     log.info("[Session {}] Stop presenter and viewer(s)", index);
