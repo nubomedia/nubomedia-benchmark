@@ -32,6 +32,13 @@ window.onload = function() {
 	$('input[type=radio][name=kmsTopology]').change(function() {
 		$('#kmsNumber').attr('disabled', this.value == 'single');
 		$('#webrtcChannels').attr('disabled', this.value == 'single');
+
+		$('#fakeClients').attr('disabled', this.value == 'tree');
+		$('input[name=removeFakeClients]').attr('disabled', this.value == 'tree');
+		$('#timeBetweenClients').attr('disabled', this.value == 'tree');
+		$('#playTime').attr('disabled', this.value == 'tree');
+		$('#fakePoints').attr('disabled', this.value == 'tree');
+		$('#fakeClientsPerInstance').attr('disabled', this.value == 'tree');
 	});
 }
 
