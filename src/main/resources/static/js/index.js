@@ -28,6 +28,11 @@ window.onload = function() {
 	$('input[type=radio][name=removeFakeClients]').change(function() {
 		$('#playTime').attr('disabled', this.value == 'false');
 	});
+
+	$('input[type=radio][name=kmsTopology]').change(function() {
+		$('#kmsNumber').attr('disabled', this.value == 'single');
+		$('#webrtcChannels').attr('disabled', this.value == 'single');
+	});
 }
 
 window.onbeforeunload = function() {
@@ -145,7 +150,7 @@ function viewer() {
 
 function onOfferViewer(error, offerSdp) {
 	if (error) {
-		return console.error('Error generating the offer');
+		return console.error('Error generating the offer ' + error);
 	}
 	console.info('Invoking SDP offer callback function ' + location.host);
 
@@ -160,6 +165,9 @@ function onOfferViewer(error, offerSdp) {
 			.getElementById('fakeClientsPerInstance').value;
 	var rateKmsLatency = document.getElementById('rateKmsLatency').value;
 	var bandwidth = document.getElementById('bandwidth').value;
+	var kmsTopology = $('input[name=kmsTopology]').filter(':checked').val();
+	var kmsNumber = document.getElementById('kmsNumber').value;
+	var webrtcChannels = document.getElementById('webrtcChannels').value;
 
 	var message = {
 		id : 'viewer',
@@ -173,7 +181,10 @@ function onOfferViewer(error, offerSdp) {
 		fakePoints : fakePoints,
 		fakeClientsPerInstance : fakeClientsPerInstance,
 		rateKmsLatency : rateKmsLatency,
-		bandwidth : bandwidth
+		bandwidth : bandwidth,
+		kmsTopology : kmsTopology,
+		kmsNumber : kmsNumber,
+		webrtcChannels : webrtcChannels
 	}
 	sendMessage(message);
 }

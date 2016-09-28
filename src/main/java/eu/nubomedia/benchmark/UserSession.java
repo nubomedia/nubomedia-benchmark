@@ -198,9 +198,17 @@ public class UserSession {
     String sdpOffer = jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString();
     int fakeClients = jsonMessage.getAsJsonPrimitive("fakeClients").getAsInt();
     int rateKmsLatency = jsonMessage.getAsJsonPrimitive("rateKmsLatency").getAsInt();
+    String kmsTopology = jsonMessage.get("kmsTopology").getAsString();
+    int kmsNumber = jsonMessage.getAsJsonPrimitive("kmsNumber").getAsInt();
+    int webrtcChannels = jsonMessage.getAsJsonPrimitive("webrtcChannels").getAsInt();
 
     log.info("[Session number {} - WS session {}] Init viewer(s) with {} filtering", sessionNumber,
         wsSession.getId(), processing);
+
+    // TODO changes here
+    System.out.println(kmsTopology);
+    System.out.println(kmsNumber);
+    System.out.println(webrtcChannels);
 
     mediaPipeline = presenterSession.getMediaPipeline();
     webRtcEndpoint = createWebRtcEndpoint(mediaPipeline);

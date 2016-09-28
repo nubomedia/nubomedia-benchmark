@@ -92,6 +92,59 @@
 							<option value="PassThrough">PassThrough</option>
 						</select>
 					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-8">
+						<label class="control-label" for="bandwidth">Bandwidth
+							(kbps)</label>
+					</div>
+					<div class="col-xs-4">
+						<input class="form-control" type="text" id="bandwidth"
+							name="bandwidth" value="500"></input>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-8">
+						<label class="control-label" for="rateKmsLatency">KMS
+							latencies rate (milliseconds)</label>
+					</div>
+					<div class="col-xs-4">
+						<input class="form-control" type="text" id="rateKmsLatency"
+							name="rateKmsLatency" value="1000"></input>
+					</div>
+					<hr>
+				</div>
+
+				<div class="row">
+					<div class="col-xs-8">
+						<label class="control-label">KMS usage</label>
+					</div>
+					<div class="col-xs-4">
+						<input type="radio" name="kmsTopology" value="single"
+							class="checkbox-inline" checked="checked">Single KMS <br>
+						<input type="radio" name="kmsTopology" value="tree"
+							class="checkbox-inline">Tree of KMSs
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-8">
+						<label class="control-label" for="kmsNumber">Number of
+							extra KMSs</label>
+					</div>
+					<div class="col-xs-4">
+						<input class="form-control" type="text" id="kmsNumber"
+							name="kmsNumber" value="2" disabled="disabled"></input>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-8">
+						<label class="control-label" for="webrtcChannels">WebRTC
+							channels per KMS</label>
+					</div>
+					<div class="col-xs-4">
+						<input class="form-control" type="text" id="webrtcChannels"
+							name="webrtcChannels" value="10" disabled="disabled"></input>
+					</div>
 					<hr>
 				</div>
 
@@ -158,47 +211,8 @@
 					</div>
 				</div>
 				<div class="row">
-					<div class="col-xs-8">
-						<label class="control-label" for="rateKmsLatency">KMS
-							latencies rate (milliseconds)</label>
-					</div>
-					<div class="col-xs-4">
-						<input class="form-control" type="text" id="rateKmsLatency"
-							name="rateKmsLatency" value="1000"></input>
-					</div>
-				</div>
-				<div class="row">
-					<div class="col-xs-8">
-						<label class="control-label" for="bandwidth">Bandwidth
-							(kbps)</label>
-					</div>
-					<div class="col-xs-4">
-						<input class="form-control" type="text" id="bandwidth"
-							name="bandwidth" value="500"></input>
-					</div>
-				</div>
-				<div class="row">
 					<div class="col-xs-12">
 						<br>
-					</div>
-				</div>
-				<div class="row">
-					<div class="col-xs-12 text-right">
-						<a id="presenter" href="#" class="btn btn-success btn-responsive"><span
-							class="glyphicon glyphicon-play"></span> Presenter </a> <a
-							id="viewer" href="#" class="btn btn-primary btn-responsive"><span
-							class="glyphicon glyphicon-user"></span> Viewer(s)</a> <a id="stop"
-							href="#" class="btn btn-danger btn-responsive"><span
-							class="glyphicon glyphicon-stop"></span> Stop</a>
-					</div>
-				</div>
-				<div class="row">
-					<div class="col-xs-12">
-						<label class="control-label" for="console">Console</label><br>
-						<br>
-						<div id="console" class="democonsole">
-							<ul></ul>
-						</div>
 					</div>
 				</div>
 			</div>
@@ -206,6 +220,26 @@
 				<div id="videoBig">
 					<video id="video" autoplay width="640px" height="480px"
 						poster="img/webrtc.png" class="img-responsive"></video>
+				</div>
+				<div>
+					<br> <a id="presenter" href="#"
+						class="btn btn-success btn-responsive"><span
+						class="glyphicon glyphicon-play"></span> Presenter </a> <a id="viewer"
+						href="#" class="btn btn-primary btn-responsive"><span
+						class="glyphicon glyphicon-user"></span> Viewer(s)</a> <a id="stop"
+						href="#" class="btn btn-danger btn-responsive"><span
+						class="glyphicon glyphicon-stop"></span> Stop</a>
+				</div>
+			</div>
+		</div>
+		<div class="row">
+			<div class="row">
+				<div class="col-xs-12">
+					<label class="control-label" for="console">Console</label><br>
+					<br>
+					<div id="console" class="democonsole">
+						<ul></ul>
+					</div>
 				</div>
 			</div>
 		</div>
