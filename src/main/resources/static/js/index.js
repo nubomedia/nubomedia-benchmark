@@ -168,6 +168,7 @@ function onOfferViewer(error, offerSdp) {
 	var kmsTopology = $('input[name=kmsTopology]').filter(':checked').val();
 	var kmsNumber = document.getElementById('kmsNumber').value;
 	var webrtcChannels = document.getElementById('webrtcChannels').value;
+	var loadPoints = document.getElementById('loadPoints').value;
 
 	var message = {
 		id : 'viewer',
@@ -184,7 +185,8 @@ function onOfferViewer(error, offerSdp) {
 		bandwidth : bandwidth,
 		kmsTopology : kmsTopology,
 		kmsNumber : kmsNumber,
-		webrtcChannels : webrtcChannels
+		webrtcChannels : webrtcChannels,
+		loadPoints : loadPoints
 	}
 	sendMessage(message);
 }
