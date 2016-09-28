@@ -104,6 +104,12 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final boolean NATIVE_DOWNLOAD_METHOD_DEFAULT = false;
   public static final String DOWNLOADS_FOLDER_NAME_PROP = "download.folder.name";
   public static final String DOWNLOADS_FOLDER_NAME_DEFAULT = "Downloads";
+  public static final String KMS_TREE_PROP = "kms.tree";
+  public static final boolean KMS_TREE_DEFAULT = true;
+  public static final String EXTRA_KMS_PROP = "extra.kms";
+  public static final int EXTRA_KMS_DEFAULT = 2;
+  public static final String WEBRTC_CHANNELS_PROP = "webrtc.channels";
+  public static final int WEBRTC_CHANNELS_DEFAULT = 3;
 
   public int extraTimePerFakeClients = 0;
   public boolean getSsim = getProperty(VIDEO_QUALITY_SSIM_PROP, VIDEO_QUALITY_SSIM_DEFAULT);
@@ -114,6 +120,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
       getProperty(NATIVE_DOWNLOAD_METHOD_PROP, NATIVE_DOWNLOAD_METHOD_DEFAULT);
   public String downloadsFolderName =
       getProperty(DOWNLOADS_FOLDER_NAME_PROP, DOWNLOADS_FOLDER_NAME_DEFAULT);
+  public boolean kmsTree = getProperty(KMS_TREE_PROP, KMS_TREE_DEFAULT);
 
   @Parameters(name = "{index}: {0}")
   public static Collection<Object[]> data() {
@@ -155,18 +162,11 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
         Select processingSelect = new Select(webDriver.findElement(By.id("processing")));
         processingSelect.selectByValue(processing);
 
-        // Number of fake clients
-        int fakeClientsInt = getProperty(FAKE_CLIENTS_NUMBER_PROP, FAKE_CLIENTS_NUMBER_DEFAULT);
-        String fakeClients = String.valueOf(fakeClientsInt);
-        WebElement fakeClientsWe = webDriver.findElement(By.id("fakeClients"));
-        fakeClientsWe.clear();
-        fakeClientsWe.sendKeys(fakeClients);
-
-        // Rate between clients (milliseconds)
-        int timeBetweenClients = getProperty(FAKE_CLIENTS_RATE_PROP, FAKE_CLIENTS_RATE_DEFAULT);
-        WebElement timeBetweenClientsWe = webDriver.findElement(By.id("timeBetweenClients"));
-        timeBetweenClientsWe.clear();
-        timeBetweenClientsWe.sendKeys(String.valueOf(timeBetweenClients));
+        // Bandwidth
+        String bandwidth = String.valueOf(getProperty(BANDWIDTH_PROP, BANDWIDTH_DEFAULT));
+        WebElement bandwidthWe = webDriver.findElement(By.id("bandwidth"));
+        bandwidthWe.clear();
+        bandwidthWe.sendKeys(bandwidth);
 
         // Rate KMS latency
         int rateKmsLatency = getProperty(RATE_KMS_LATENCY_PROP, RATE_KMS_LATENCY_DEFAULT);
@@ -174,49 +174,75 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
         rateKmsLatencyWe.clear();
         rateKmsLatencyWe.sendKeys(String.valueOf(rateKmsLatency));
 
-        if (fakeClientsInt > 0) {
-          extraTimePerFakeClients = fakeClientsInt * timeBetweenClients / 1000;
+        // KMS usage
+        List<WebElement> kmsTopologyList = webDriver.findElements(By.name("kmsTopology"));
+        kmsTopologyList.get(!kmsTree ? 0 : 1).click();
+
+        if (kmsTree) {
+          // Number of extra KMSs
+          String extraKms = String.valueOf(getProperty(EXTRA_KMS_PROP, EXTRA_KMS_DEFAULT));
+          WebElement kmsNumberWe = webDriver.findElement(By.id("kmsNumber"));
+          kmsNumberWe.clear();
+          kmsNumberWe.sendKeys(extraKms);
+
+          // WebRTC channels per KMS
+          String webrtcChannels =
+              String.valueOf(getProperty(WEBRTC_CHANNELS_PROP, WEBRTC_CHANNELS_DEFAULT));
+          WebElement webrtcChannelsWe = webDriver.findElement(By.id("webrtcChannels"));
+          webrtcChannelsWe.clear();
+          webrtcChannelsWe.sendKeys(webrtcChannels);
+        } else {
+          // Number of fake clients
+          int fakeClientsInt = getProperty(FAKE_CLIENTS_NUMBER_PROP, FAKE_CLIENTS_NUMBER_DEFAULT);
+          String fakeClients = String.valueOf(fakeClientsInt);
+          WebElement fakeClientsWe = webDriver.findElement(By.id("fakeClients"));
+          fakeClientsWe.clear();
+          fakeClientsWe.sendKeys(fakeClients);
+
+          // Rate between clients (milliseconds)
+          int timeBetweenClients = getProperty(FAKE_CLIENTS_RATE_PROP, FAKE_CLIENTS_RATE_DEFAULT);
+          WebElement timeBetweenClientsWe = webDriver.findElement(By.id("timeBetweenClients"));
+          timeBetweenClientsWe.clear();
+          timeBetweenClientsWe.sendKeys(String.valueOf(timeBetweenClients));
+
+          if (fakeClientsInt > 0) {
+            extraTimePerFakeClients = fakeClientsInt * timeBetweenClients / 1000;
+          }
+
+          // Remove fake clients
+          boolean removeFakeClients =
+              getProperty(FAKE_CLIENTS_REMOVE_PROP, FAKE_CLIENTS_REMOVE_DEFAULT);
+          List<WebElement> removeFakeClientsList =
+              webDriver.findElements(By.name("removeFakeClients"));
+          removeFakeClientsList.get(removeFakeClients ? 0 : 1).click();
+
+          // Time with all fake clients together (seconds)
+          if (removeFakeClients) {
+            int playTime =
+                getProperty(FAKE_CLIENTS_TOGETHER_TIME_PROP, FAKE_CLIENTS_TOGETHER_TIME_DEFAULT);
+            WebElement playTimeWe = webDriver.findElement(By.id("playTime"));
+            playTimeWe.clear();
+            playTimeWe.sendKeys(String.valueOf(playTime));
+
+            extraTimePerFakeClients = (extraTimePerFakeClients * 2) + playTime;
+          }
+
+          // KMS points for fake clients
+          String fakePoints = String
+              .valueOf(getProperty(FAKE_CLIENTS_KMS_POINTS_PROP, FAKE_CLIENTS_KMS_POINTS_DEFAULT));
+          WebElement fakePointsWe = webDriver.findElement(By.id("fakePoints"));
+          fakePointsWe.clear();
+          fakePointsWe.sendKeys(fakePoints);
+
+          // Number of fake clients per KMS instance
+          String fakeClientsPerInstance =
+              String.valueOf(getProperty(FAKE_CLIENTS_PER_KMS_PROP, FAKE_CLIENTS_PER_KMS_DEFAULT));
+          WebElement fakeClientsPerInstanceWe =
+              webDriver.findElement(By.id("fakeClientsPerInstance"));
+          fakeClientsPerInstanceWe.clear();
+          fakeClientsPerInstanceWe.sendKeys(fakeClientsPerInstance);
+
         }
-
-        // Remove fake clients
-        boolean removeFakeClients =
-            getProperty(FAKE_CLIENTS_REMOVE_PROP, FAKE_CLIENTS_REMOVE_DEFAULT);
-        List<WebElement> removeFakeClientsList =
-            webDriver.findElements(By.name("removeFakeClients"));
-        int index = removeFakeClients ? 0 : 1;
-        removeFakeClientsList.get(index).click();
-
-        // Time with all fake clients together (seconds)
-        if (removeFakeClients) {
-          int playTime =
-              getProperty(FAKE_CLIENTS_TOGETHER_TIME_PROP, FAKE_CLIENTS_TOGETHER_TIME_DEFAULT);
-          WebElement playTimeWe = webDriver.findElement(By.id("playTime"));
-          playTimeWe.clear();
-          playTimeWe.sendKeys(String.valueOf(playTime));
-
-          extraTimePerFakeClients = (extraTimePerFakeClients * 2) + playTime;
-        }
-
-        // KMS points for fake clients
-        String fakePoints = String
-            .valueOf(getProperty(FAKE_CLIENTS_KMS_POINTS_PROP, FAKE_CLIENTS_KMS_POINTS_DEFAULT));
-        WebElement fakePointsWe = webDriver.findElement(By.id("fakePoints"));
-        fakePointsWe.clear();
-        fakePointsWe.sendKeys(fakePoints);
-
-        // Number of fake clients per KMS instance
-        String fakeClientsPerInstance =
-            String.valueOf(getProperty(FAKE_CLIENTS_PER_KMS_PROP, FAKE_CLIENTS_PER_KMS_DEFAULT));
-        WebElement fakeClientsPerInstanceWe =
-            webDriver.findElement(By.id("fakeClientsPerInstance"));
-        fakeClientsPerInstanceWe.clear();
-        fakeClientsPerInstanceWe.sendKeys(fakeClientsPerInstance);
-
-        // Bandwidth
-        String bandwidth = String.valueOf(getProperty(BANDWIDTH_PROP, BANDWIDTH_DEFAULT));
-        WebElement bandwidthWe = webDriver.findElement(By.id("bandwidth"));
-        bandwidthWe.clear();
-        bandwidthWe.sendKeys(bandwidth);
       }
     }
 
@@ -289,10 +315,15 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     }
 
     // Play video
-    int playTime = ((sessionsNumber - index - 1) * sessionRateTime / 1000) + sessionPlayTime
-        + extraTimePerFakeClients;
-    log.info("[Session {}] Total play time {} seconds (extra time because of fake clients {})",
-        index, playTime, extraTimePerFakeClients);
+    int playTime = ((sessionsNumber - index - 1) * sessionRateTime / 1000) + sessionPlayTime;
+
+    if (kmsTree) {
+      log.info("[Session {}] Total play time {} seconds", index, playTime);
+    } else {
+      playTime += extraTimePerFakeClients;
+      log.info("[Session {}] Total play time {} seconds (extra time because of fake clients {})",
+          index, playTime, extraTimePerFakeClients);
+    }
     waitSeconds(playTime);
 
     // Get OCR results and statistics
