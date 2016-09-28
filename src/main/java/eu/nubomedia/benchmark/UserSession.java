@@ -46,6 +46,7 @@ import org.kurento.client.MediaType;
 import org.kurento.client.OnIceCandidateEvent;
 import org.kurento.client.PassThrough;
 import org.kurento.client.Properties;
+import org.kurento.client.RecorderEndpoint;
 import org.kurento.client.Stats;
 import org.kurento.client.WebRtcEndpoint;
 import org.kurento.client.ZBarFilter;
@@ -78,6 +79,8 @@ public class UserSession {
   private String sessionNumber;
   private List<KurentoClient> fakeKurentoClients = new ArrayList<>();
   private List<MediaPipeline> fakeMediaPipelines = new ArrayList<>();
+  private List<KurentoClient> extraKurentoClients = new ArrayList<>();
+  private List<MediaPipeline> extraMediaPipelines = new ArrayList<>();
   private Map<String, List<MediaElement>> mediaElementsInFakeMediaPipelineMap =
       new ConcurrentSkipListMap<>();
   private Queue<String> fakeKmsUriQueue;
@@ -98,19 +101,7 @@ public class UserSession {
     log.info("[Session number {} - WS session {}] Init presenter", sessionNumber,
         wsSession.getId());
 
-    String wsUri = getProperty(KMS_WS_URI_PROP);
-    if (wsUri != null) {
-      log.info("[Session number {} - WS session {}] Using KMS URI {} to create KurentoClient",
-          sessionNumber, wsSession.getId(), wsUri);
-      kurentoClient = KurentoClient.create(wsUri);
-    } else {
-      log.info("[Session number {} - WS session {}] Reserving {} points to create KurentoClient",
-          sessionNumber, wsSession.getId(), loadPoints);
-      Properties properties = new Properties();
-      properties.add("loadPoints", loadPoints);
-      kurentoClient = KurentoClient.create(properties);
-    }
-
+    kurentoClient = createKurentoClient(loadPoints);
     mediaPipeline = kurentoClient.createMediaPipeline();
     webRtcEndpoint = createWebRtcEndpoint(mediaPipeline);
 
@@ -127,6 +118,23 @@ public class UserSession {
 
   }
 
+  private KurentoClient createKurentoClient(int loadPoints) {
+    KurentoClient kurentoClient;
+    String wsUri = getProperty(KMS_WS_URI_PROP);
+    if (wsUri != null) {
+      log.info("[Session number {} - WS session {}] Using KMS URI {} to create KurentoClient",
+          sessionNumber, wsSession.getId(), wsUri);
+      kurentoClient = KurentoClient.create(wsUri);
+    } else {
+      log.info("[Session number {} - WS session {}] Reserving {} points to create KurentoClient",
+          sessionNumber, wsSession.getId(), loadPoints);
+      Properties properties = new Properties();
+      properties.add("loadPoints", loadPoints);
+      kurentoClient = KurentoClient.create(properties);
+    }
+    return kurentoClient;
+  }
+
   private Thread gatherLatencies(final int rateKmsLatency) {
     mediaPipeline.setLatencyStats(true);
 
@@ -135,6 +143,7 @@ public class UserSession {
       public void run() {
         while (true) {
           try {
+            // TODO watch this
             if (webRtcEndpoint != null) {
               Map<String, Stats> stats = webRtcEndpoint.getStats(MediaType.VIDEO);
               Collection<Stats> values = stats.values();
@@ -201,23 +210,11 @@ public class UserSession {
     String kmsTopology = jsonMessage.get("kmsTopology").getAsString();
     int kmsNumber = jsonMessage.getAsJsonPrimitive("kmsNumber").getAsInt();
     int webrtcChannels = jsonMessage.getAsJsonPrimitive("webrtcChannels").getAsInt();
+    int loadPoints = jsonMessage.getAsJsonPrimitive("loadPoints").getAsInt();
 
-    log.info("[Session number {} - WS session {}] Init viewer(s) with {} filtering", sessionNumber,
-        wsSession.getId(), processing);
-
-    // TODO changes here
-    System.out.println(kmsTopology);
-    System.out.println(kmsNumber);
-    System.out.println(webrtcChannels);
-
-    mediaPipeline = presenterSession.getMediaPipeline();
-    webRtcEndpoint = createWebRtcEndpoint(mediaPipeline);
-
-    addOnIceCandidateListener();
-
-    // Connectivity
-    WebRtcEndpoint inputWebRtcEndpoint = presenterSession.getWebRtcEndpoint();
-    filter = connectMediaElements(inputWebRtcEndpoint, processing, webRtcEndpoint);
+    WebRtcEndpoint inputWebRtcEndpoint = (kmsTopology.equalsIgnoreCase("tree"))
+        ? treeKmsTopology(presenterSession, processing, kmsNumber, webrtcChannels, loadPoints)
+        : singleKmsTopology(presenterSession, processing);
 
     String sdpAnswer = webRtcEndpoint.processOffer(sdpOffer);
     JsonObject response = new JsonObject();
@@ -228,7 +225,7 @@ public class UserSession {
     handler.sendMessage(wsSession, sessionNumber, new TextMessage(response.toString()));
     webRtcEndpoint.gatherCandidates();
 
-    if (fakeClients > 0) {
+    if (kmsTopology.equalsIgnoreCase("single") && fakeClients > 0) {
       addFakeClients(presenterSession, jsonMessage, inputWebRtcEndpoint);
     }
 
@@ -236,8 +233,104 @@ public class UserSession {
     latencyThread = gatherLatencies(rateKmsLatency);
   }
 
+  private WebRtcEndpoint treeKmsTopology(UserSession presenterSession, String processing,
+      int kmsNumber, int webrtcChannels, int loadPoints) {
+    log.info(
+        "[Session number {} - WS session {}] Init viewer(s) with {} filtering {}"
+            + " (Tree {} KMS with {} WebRTC channels)",
+        sessionNumber, wsSession.getId(), processing, kmsNumber, webrtcChannels);
+
+    // TODO dev here
+    // Connectivity
+    WebRtcEndpoint inputWebRtcEndpoint = presenterSession.getWebRtcEndpoint();
+    List<WebRtcEndpoint> sourceWebRtcList = new ArrayList<>(webrtcChannels);
+    mediaPipeline = presenterSession.getMediaPipeline();
+
+    for (int i = 0; i < webrtcChannels * kmsNumber; i++) {
+      WebRtcEndpoint sourceWebRtc = createWebRtcEndpoint(mediaPipeline);
+      sourceWebRtcList.add(sourceWebRtc);
+      connectMediaElements(inputWebRtcEndpoint, processing, sourceWebRtc);
+    }
+
+    // Rest of KMS(s)
+    int webRtcIndex = 0;
+    for (int j = 0; j < kmsNumber; j++) {
+      KurentoClient extraKurentoClient = createKurentoClient(loadPoints);
+      MediaPipeline extraMediaPipeline = extraKurentoClient.createMediaPipeline();
+
+      extraMediaPipelines.add(extraMediaPipeline);
+      extraKurentoClients.add(extraKurentoClient);
+
+      for (int i = 0; i < webrtcChannels; i++) {
+        WebRtcEndpoint targetWebRtc = createWebRtcEndpoint(extraMediaPipeline);
+        connectWebRtcEndpoints(sourceWebRtcList.get(webRtcIndex), targetWebRtc);
+        webRtcIndex++;
+
+        MediaElement finalMediaElement;
+        if (j == 0 && i == 0) {
+          finalMediaElement = createWebRtcEndpoint(extraMediaPipeline);
+          webRtcEndpoint = (WebRtcEndpoint) finalMediaElement;
+          addOnIceCandidateListener();
+        } else {
+          finalMediaElement = new RecorderEndpoint.Builder(extraMediaPipeline,
+              "file:///tmp/recorder" + j + "_" + i + ".webm").build();
+          ((RecorderEndpoint) finalMediaElement).record();
+        }
+
+        MediaElement connectMediaElements =
+            connectMediaElements(targetWebRtc, processing, finalMediaElement);
+        if (j == 0 && i == 0) {
+          filter = connectMediaElements;
+        }
+      }
+    }
+
+    return webRtcEndpoint;
+  }
+
+  private void connectWebRtcEndpoints(final WebRtcEndpoint webRtcEndpoint1,
+      final WebRtcEndpoint webRtcEndpoint2) {
+    webRtcEndpoint1.addOnIceCandidateListener(new EventListener<OnIceCandidateEvent>() {
+      @Override
+      public void onEvent(OnIceCandidateEvent event) {
+        webRtcEndpoint2.addIceCandidate(event.getCandidate());
+      }
+    });
+
+    webRtcEndpoint2.addOnIceCandidateListener(new EventListener<OnIceCandidateEvent>() {
+      @Override
+      public void onEvent(OnIceCandidateEvent event) {
+        webRtcEndpoint1.addIceCandidate(event.getCandidate());
+      }
+    });
+
+    String sdpOffer = webRtcEndpoint2.generateOffer();
+    String sdpAnswer = webRtcEndpoint1.processOffer(sdpOffer);
+    webRtcEndpoint2.processAnswer(sdpAnswer);
+
+    webRtcEndpoint1.gatherCandidates();
+    webRtcEndpoint2.gatherCandidates();
+  }
+
+  private WebRtcEndpoint singleKmsTopology(UserSession presenterSession, String processing) {
+    log.info("[Session number {} - WS session {}] Init viewer(s) with {} filtering {} (Single KMS)",
+        sessionNumber, wsSession.getId(), processing);
+
+    mediaPipeline = presenterSession.getMediaPipeline();
+    webRtcEndpoint = createWebRtcEndpoint(mediaPipeline);
+
+    addOnIceCandidateListener();
+
+    // Connectivity
+    WebRtcEndpoint inputWebRtcEndpoint = presenterSession.getWebRtcEndpoint();
+    filter = connectMediaElements(inputWebRtcEndpoint, processing, webRtcEndpoint);
+
+    return inputWebRtcEndpoint;
+  }
+
   private MediaElement connectMediaElements(MediaElement input, String filterId,
       MediaElement output) {
+    MediaPipeline mediaPipeline = input.getMediaPipeline();
     MediaElement filter = null;
     switch (filterId) {
       case "Encoder":
@@ -570,6 +663,26 @@ public class UserSession {
         kc = null;
       }
       fakeKurentoClients.clear();
+    }
+
+    if (!extraMediaPipelines.isEmpty()) {
+      log.debug("[Session number {} - WS session {}] Releasing extra media pipeline", sessionNumber,
+          wsSession.getId());
+      for (MediaPipeline mp : extraMediaPipelines) {
+        mp.release();
+        mp = null;
+      }
+      extraMediaPipelines.clear();
+    }
+
+    if (!extraKurentoClients.isEmpty()) {
+      log.debug("[Session number {} - WS session {}] Destroying extra kurentoClient", sessionNumber,
+          wsSession.getId());
+      for (KurentoClient kc : extraKurentoClients) {
+        kc.destroy();
+        kc = null;
+      }
+      extraKurentoClients.clear();
     }
   }
 
