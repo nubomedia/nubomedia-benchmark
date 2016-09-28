@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
+import org.kurento.client.ElementConnectionData;
 import org.kurento.client.ElementStats;
 import org.kurento.client.EndpointStats;
 import org.kurento.client.EventListener;
@@ -83,6 +84,7 @@ public class UserSession {
   private List<MediaPipeline> extraMediaPipelines = new ArrayList<>();
   private Map<String, List<MediaElement>> mediaElementsInFakeMediaPipelineMap =
       new ConcurrentSkipListMap<>();
+  private List<MediaElement> mediaElementsInExtraMediaPipelineList = new ArrayList<>();
   private Queue<String> fakeKmsUriQueue;
   private List<Double> mediaPipelineLatencies = new ArrayList<>();
   private List<Double> filterLatencies = new ArrayList<>();
@@ -143,7 +145,6 @@ public class UserSession {
       public void run() {
         while (true) {
           try {
-            // TODO watch this
             if (webRtcEndpoint != null) {
               Map<String, Stats> stats = webRtcEndpoint.getStats(MediaType.VIDEO);
               Collection<Stats> values = stats.values();
@@ -202,7 +203,6 @@ public class UserSession {
   }
 
   public void initViewer(UserSession presenterSession, JsonObject jsonMessage) {
-
     String processing = jsonMessage.get("processing").getAsString();
     String sdpOffer = jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString();
     int fakeClients = jsonMessage.getAsJsonPrimitive("fakeClients").getAsInt();
@@ -240,15 +240,13 @@ public class UserSession {
             + " (Tree {} KMS with {} WebRTC channels)",
         sessionNumber, wsSession.getId(), processing, kmsNumber, webrtcChannels);
 
-    // TODO dev here
     // Connectivity
     WebRtcEndpoint inputWebRtcEndpoint = presenterSession.getWebRtcEndpoint();
-    List<WebRtcEndpoint> sourceWebRtcList = new ArrayList<>(webrtcChannels);
     mediaPipeline = presenterSession.getMediaPipeline();
 
     for (int i = 0; i < webrtcChannels * kmsNumber; i++) {
       WebRtcEndpoint sourceWebRtc = createWebRtcEndpoint(mediaPipeline);
-      sourceWebRtcList.add(sourceWebRtc);
+      mediaElementsInExtraMediaPipelineList.add(sourceWebRtc);
       connectMediaElements(inputWebRtcEndpoint, processing, sourceWebRtc);
     }
 
@@ -263,7 +261,8 @@ public class UserSession {
 
       for (int i = 0; i < webrtcChannels; i++) {
         WebRtcEndpoint targetWebRtc = createWebRtcEndpoint(extraMediaPipeline);
-        connectWebRtcEndpoints(sourceWebRtcList.get(webRtcIndex), targetWebRtc);
+        connectWebRtcEndpoints(
+            (WebRtcEndpoint) mediaElementsInExtraMediaPipelineList.get(webRtcIndex), targetWebRtc);
         webRtcIndex++;
 
         MediaElement finalMediaElement;
@@ -627,6 +626,20 @@ public class UserSession {
       webRtcEndpoint.release();
       webRtcEndpoint = null;
     }
+
+    for (MediaElement me : mediaElementsInExtraMediaPipelineList) {
+      for (ElementConnectionData e : me.getSourceConnections()) {
+        MediaElement source = e.getSource();
+        if (!(source instanceof WebRtcEndpoint)) {
+          source.release();
+        }
+      }
+      if (me != null) {
+        me.release();
+      }
+    }
+    mediaElementsInExtraMediaPipelineList.clear();
+
     for (List<MediaElement> list : mediaElementsInFakeMediaPipelineMap.values()) {
       for (MediaElement mediaElement : list) {
         if (mediaElement != null) {
