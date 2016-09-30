@@ -78,7 +78,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final String INIT_SESSION_NUMBER_PROP = "init.session.number";
   public static final int INIT_SESSION_NUMBER_DEFAULT = 0;
   public static final String POINTS_PER_SESSION_PROP = "points.per.session";
-  public static final int POINTS_PER_SESSION_DEFAULT = 200;
+  public static final int POINTS_PER_SESSION_DEFAULT = 150;
   public static final String MEDIA_PROCESSING_PROP = "processing";
   public static final String MEDIA_PROCESSING_DEFAULT = "None";
   public static final String FAKE_CLIENTS_REMOVE_PROP = "fake.clients.remove";
