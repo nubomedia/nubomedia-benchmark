@@ -16,8 +16,6 @@
 package eu.nubomedia.benchmark;
 
 import static org.kurento.commons.PropertiesManager.getProperty;
-import static org.kurento.test.config.TestConfiguration.FAKE_KMS_WS_URI_PROP;
-import static org.kurento.test.config.TestConfiguration.KMS_WS_URI_PROP;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -69,6 +67,8 @@ public class UserSession {
 
   private final Logger log = LoggerFactory.getLogger(UserSession.class);
 
+  private final static String FAKE_KMS_WS_URI_PROP = "fake.kms.ws.uri";
+  private final static String KMS_WS_URI_PROP = "kms.ws.uri";
   private final static String FAKE_KMS_SEPARATOR_CHAR = ",";
 
   private BenchmarkHandler handler;
