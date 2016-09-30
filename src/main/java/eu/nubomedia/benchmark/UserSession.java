@@ -271,8 +271,8 @@ public class UserSession {
           webRtcEndpoint = (WebRtcEndpoint) finalMediaElement;
           addOnIceCandidateListener();
         } else {
-          finalMediaElement = new RecorderEndpoint.Builder(extraMediaPipeline,
-              "file:///tmp/recorder" + j + "_" + i + ".webm").build();
+          finalMediaElement =
+              new RecorderEndpoint.Builder(extraMediaPipeline, "file:///dev/null").build();
           ((RecorderEndpoint) finalMediaElement).record();
         }
 
@@ -655,6 +655,7 @@ public class UserSession {
     mediaElementsInFakeMediaPipelineMap.clear();
 
     releaseFakeMediaPipeline();
+
   }
 
   private void releaseFakeMediaPipeline() {
