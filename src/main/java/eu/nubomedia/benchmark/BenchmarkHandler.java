@@ -150,8 +150,10 @@ public class BenchmarkHandler extends TextWebSocketHandler {
     UserSession userSession = findUserByWsSession(wsSession);
     log.info("[Session number {} - WS session {}] Stopping session", sessionNumber, wsSessionId);
 
-    if (presenters.containsKey(sessionNumber) && presenters.get(sessionNumber).getWebSocketSession()
-        .getId().equals(userSession.getWebSocketSession().getId())) {
+    if (presenters.containsKey(sessionNumber)
+        && presenters.get(sessionNumber).getWebSocketSession() != null
+        && userSession.getWebSocketSession() != null && presenters.get(sessionNumber)
+            .getWebSocketSession().getId().equals(userSession.getWebSocketSession().getId())) {
       // Case 1. Stop arrive from presenter
       log.info("[Session number {} - WS session {}] Releasing presenter", sessionNumber,
           wsSessionId);
