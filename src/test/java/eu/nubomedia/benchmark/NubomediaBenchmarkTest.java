@@ -105,7 +105,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final String DOWNLOADS_FOLDER_NAME_PROP = "download.folder.name";
   public static final String DOWNLOADS_FOLDER_NAME_DEFAULT = "Downloads";
   public static final String KMS_TREE_PROP = "kms.tree";
-  public static final boolean KMS_TREE_DEFAULT = true;
+  public static final boolean KMS_TREE_DEFAULT = false;
   public static final String EXTRA_KMS_PROP = "extra.kms";
   public static final int EXTRA_KMS_DEFAULT = 2;
   public static final String WEBRTC_CHANNELS_PROP = "webrtc.channels";
