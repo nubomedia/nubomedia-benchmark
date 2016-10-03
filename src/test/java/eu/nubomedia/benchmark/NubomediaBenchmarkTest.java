@@ -110,6 +110,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final int EXTRA_KMS_DEFAULT = 2;
   public static final String WEBRTC_CHANNELS_PROP = "webrtc.channels";
   public static final int WEBRTC_CHANNELS_DEFAULT = 3;
+  public static final String KMS_RATE_PROP = "kms.rate";
+  public static final int KMS_RATE_DEFAULT = 5;
 
   public int extraTimePerFakeClients = 0;
   public boolean getSsim = getProperty(VIDEO_QUALITY_SSIM_PROP, VIDEO_QUALITY_SSIM_DEFAULT);
@@ -121,6 +123,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public String downloadsFolderName =
       getProperty(DOWNLOADS_FOLDER_NAME_PROP, DOWNLOADS_FOLDER_NAME_DEFAULT);
   public boolean kmsTree = getProperty(KMS_TREE_PROP, KMS_TREE_DEFAULT);
+  public int extraKmsNumber = getProperty(EXTRA_KMS_PROP, EXTRA_KMS_DEFAULT);
+  public int kmsRate = getProperty(KMS_RATE_PROP, KMS_RATE_DEFAULT);
 
   @Parameters(name = "{index}: {0}")
   public static Collection<Object[]> data() {
@@ -180,10 +184,9 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
 
         if (kmsTree) {
           // Number of extra KMSs
-          String extraKms = String.valueOf(getProperty(EXTRA_KMS_PROP, EXTRA_KMS_DEFAULT));
           WebElement kmsNumberWe = webDriver.findElement(By.id("kmsNumber"));
           kmsNumberWe.clear();
-          kmsNumberWe.sendKeys(extraKms);
+          kmsNumberWe.sendKeys(String.valueOf(extraKmsNumber));
 
           // WebRTC channels per KMS
           String webrtcChannels =
@@ -191,6 +194,12 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
           WebElement webrtcChannelsWe = webDriver.findElement(By.id("webrtcChannels"));
           webrtcChannelsWe.clear();
           webrtcChannelsWe.sendKeys(webrtcChannels);
+
+          // Rate to add new KMS's (seconds)
+          WebElement kmsRateWe = webDriver.findElement(By.id("kmsRate"));
+          kmsRateWe.clear();
+          kmsRateWe.sendKeys(String.valueOf(kmsRate));
+
         } else {
           // Number of fake clients
           int fakeClientsInt = getProperty(FAKE_CLIENTS_NUMBER_PROP, FAKE_CLIENTS_NUMBER_DEFAULT);
@@ -318,7 +327,10 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     int playTime = ((sessionsNumber - index - 1) * sessionRateTime / 1000) + sessionPlayTime;
 
     if (kmsTree) {
-      log.info("[Session {}] Total play time {} seconds", index, playTime);
+      int extraTimePerKms = kmsRate * extraKmsNumber;
+      playTime += extraTimePerKms;
+      log.info("[Session {}] Total play time {} seconds (extra time because of kms's {})", index,
+          playTime, extraTimePerKms);
     } else {
       playTime += extraTimePerFakeClients;
       log.info("[Session {}] Total play time {} seconds (extra time because of fake clients {})",
