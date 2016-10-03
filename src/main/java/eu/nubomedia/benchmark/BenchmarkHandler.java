@@ -106,7 +106,7 @@ public class BenchmarkHandler extends TextWebSocketHandler {
   }
 
   private synchronized void viewer(WebSocketSession wsSession, String sessionNumber,
-      JsonObject jsonMessage) {
+      JsonObject jsonMessage) throws InterruptedException {
     String wsSessionId = wsSession.getId();
 
     if (presenters.containsKey(sessionNumber)) {

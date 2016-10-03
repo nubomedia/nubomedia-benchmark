@@ -32,6 +32,7 @@ window.onload = function() {
 	$('input[type=radio][name=kmsTopology]').change(function() {
 		$('#kmsNumber').attr('disabled', this.value == 'single');
 		$('#webrtcChannels').attr('disabled', this.value == 'single');
+		$('#kmsRate').attr('disabled', this.value == 'single');
 
 		$('#fakeClients').attr('disabled', this.value == 'tree');
 		$('input[name=removeFakeClients]').attr('disabled', this.value == 'tree');
@@ -175,6 +176,7 @@ function onOfferViewer(error, offerSdp) {
 	var kmsTopology = $('input[name=kmsTopology]').filter(':checked').val();
 	var kmsNumber = document.getElementById('kmsNumber').value;
 	var webrtcChannels = document.getElementById('webrtcChannels').value;
+	var kmsRate = document.getElementById('kmsRate').value;
 	var loadPoints = document.getElementById('loadPoints').value;
 
 	var message = {
@@ -193,7 +195,8 @@ function onOfferViewer(error, offerSdp) {
 		kmsTopology : kmsTopology,
 		kmsNumber : kmsNumber,
 		webrtcChannels : webrtcChannels,
-		loadPoints : loadPoints
+		loadPoints : loadPoints,
+		kmsRate : kmsRate
 	}
 	sendMessage(message);
 }

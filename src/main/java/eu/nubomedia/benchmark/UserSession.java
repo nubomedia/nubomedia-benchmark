@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.kurento.client.ElementConnectionData;
@@ -202,7 +203,8 @@ public class UserSession {
 
   }
 
-  public void initViewer(UserSession presenterSession, JsonObject jsonMessage) {
+  public void initViewer(UserSession presenterSession, JsonObject jsonMessage)
+      throws InterruptedException {
     String processing = jsonMessage.get("processing").getAsString();
     String sdpOffer = jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString();
     int fakeClients = jsonMessage.getAsJsonPrimitive("fakeClients").getAsInt();
@@ -211,9 +213,11 @@ public class UserSession {
     int kmsNumber = jsonMessage.getAsJsonPrimitive("kmsNumber").getAsInt();
     int webrtcChannels = jsonMessage.getAsJsonPrimitive("webrtcChannels").getAsInt();
     int loadPoints = jsonMessage.getAsJsonPrimitive("loadPoints").getAsInt();
+    int kmsRate = jsonMessage.getAsJsonPrimitive("kmsRate").getAsInt();
 
     WebRtcEndpoint inputWebRtcEndpoint = (kmsTopology.equalsIgnoreCase("tree"))
-        ? treeKmsTopology(presenterSession, processing, kmsNumber, webrtcChannels, loadPoints)
+        ? treeKmsTopology(presenterSession, processing, kmsNumber, webrtcChannels, loadPoints,
+            kmsRate)
         : singleKmsTopology(presenterSession, processing);
 
     String sdpAnswer = webRtcEndpoint.processOffer(sdpOffer);
@@ -233,11 +237,12 @@ public class UserSession {
     latencyThread = gatherLatencies(rateKmsLatency);
   }
 
-  private WebRtcEndpoint treeKmsTopology(UserSession presenterSession, String processing,
-      int kmsNumber, int webrtcChannels, int loadPoints) {
+  private WebRtcEndpoint treeKmsTopology(UserSession presenterSession, final String processing,
+      final int kmsNumber, final int webrtcChannels, final int loadPoints, final int kmsRate)
+      throws InterruptedException {
     log.info(
-        "[Session number {} - WS session {}] Init viewer(s) with {} filtering {}"
-            + " (Tree {} KMS with {} WebRTC channels)",
+        "[Session number {} - WS session {}] Init viewer(s) with {} filtering"
+            + " (Tree with {} KMS and {} WebRTC channels)",
         sessionNumber, wsSession.getId(), processing, kmsNumber, webrtcChannels);
 
     // Connectivity
@@ -250,39 +255,71 @@ public class UserSession {
       connectMediaElements(inputWebRtcEndpoint, processing, sourceWebRtc);
     }
 
-    // Rest of KMS(s)
-    int webRtcIndex = 0;
-    for (int j = 0; j < kmsNumber; j++) {
-      KurentoClient extraKurentoClient = createKurentoClient(loadPoints);
-      MediaPipeline extraMediaPipeline = extraKurentoClient.createMediaPipeline();
+    final CountDownLatch latch = new CountDownLatch(1);
+    new Thread(new Runnable() {
+      @Override
+      public void run() {
+        // Rest of KMS(s)
+        int webRtcIndex = 0;
+        for (int j = 0; j < kmsNumber; j++) {
+          KurentoClient extraKurentoClient = createKurentoClient(loadPoints);
+          MediaPipeline extraMediaPipeline = extraKurentoClient.createMediaPipeline();
 
-      extraMediaPipelines.add(extraMediaPipeline);
-      extraKurentoClients.add(extraKurentoClient);
+          extraMediaPipelines.add(extraMediaPipeline);
+          extraKurentoClients.add(extraKurentoClient);
 
-      for (int i = 0; i < webrtcChannels; i++) {
-        WebRtcEndpoint targetWebRtc = createWebRtcEndpoint(extraMediaPipeline);
-        connectWebRtcEndpoints(
-            (WebRtcEndpoint) mediaElementsInExtraMediaPipelineList.get(webRtcIndex), targetWebRtc);
-        webRtcIndex++;
+          long startTime = System.currentTimeMillis();
 
-        MediaElement finalMediaElement;
-        if (j == 0 && i == 0) {
-          finalMediaElement = createWebRtcEndpoint(extraMediaPipeline);
-          webRtcEndpoint = (WebRtcEndpoint) finalMediaElement;
-          addOnIceCandidateListener();
-        } else {
-          finalMediaElement =
-              new RecorderEndpoint.Builder(extraMediaPipeline, "file:///dev/null").build();
-          ((RecorderEndpoint) finalMediaElement).record();
-        }
+          for (int i = 0; i < webrtcChannels; i++) {
+            WebRtcEndpoint targetWebRtc = createWebRtcEndpoint(extraMediaPipeline);
+            connectWebRtcEndpoints(
+                (WebRtcEndpoint) mediaElementsInExtraMediaPipelineList.get(webRtcIndex),
+                targetWebRtc);
+            webRtcIndex++;
 
-        MediaElement connectMediaElements =
-            connectMediaElements(targetWebRtc, processing, finalMediaElement);
-        if (j == 0 && i == 0) {
-          filter = connectMediaElements;
+            MediaElement finalMediaElement;
+            if (j == 0 && i == 0) {
+              finalMediaElement = createWebRtcEndpoint(extraMediaPipeline);
+              webRtcEndpoint = (WebRtcEndpoint) finalMediaElement;
+              addOnIceCandidateListener();
+              latch.countDown();
+            } else {
+              finalMediaElement =
+                  new RecorderEndpoint.Builder(extraMediaPipeline, "file:///dev/null").build();
+              ((RecorderEndpoint) finalMediaElement).record();
+            }
+
+            MediaElement connectMediaElements =
+                connectMediaElements(targetWebRtc, processing, finalMediaElement);
+            if (j == 0 && i == 0) {
+              filter = connectMediaElements;
+            }
+          }
+
+          // Wait among KMSs
+          try {
+            long channelsTime = System.currentTimeMillis() - startTime;
+            long waitTime = TimeUnit.SECONDS.toMillis(kmsRate) - channelsTime;
+            if (waitTime > 0) {
+              log.info(
+                  "[Session number {} - WS session {}] Waiting {} seconds"
+                      + " (actual wait {} ms, since the WebRTC channels connections last {} ms)",
+                  sessionNumber, wsSession.getId(), kmsRate, waitTime, channelsTime);
+              Thread.sleep(waitTime);
+            } else {
+              log.info(
+                  "[Session number {} - WS session {}] Waiting {} seconds"
+                      + " (already waited while connecting WebRTC channels in {} ms)",
+                  sessionNumber, wsSession.getId(), kmsRate, channelsTime);
+            }
+          } catch (InterruptedException e) {
+            log.warn("Interrupted thread while polling");
+          }
         }
       }
-    }
+    }).start();
+
+    latch.await();
 
     return webRtcEndpoint;
   }
