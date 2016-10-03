@@ -28,13 +28,6 @@
 		<url>http://www.nubomedia.eu/</url>
 	</organization>
 
-	<scm>
-		<url>https://github.com/nubomedia/nubomedia-benchmark</url>
-		<connection>scm:git:https://github.com/nubomedia/nubomedia-benchmark</connection>
-		<developerConnection>scm:git://git@github.com:nubomedia/nubomedia-benchmark</developerConnection>
-		<tag>master</tag>
-	</scm>
-
 	<developers>
 		<developer>
 			<id>nubomedia.eu</id>
