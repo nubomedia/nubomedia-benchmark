@@ -25,6 +25,10 @@ window.onload = function() {
 	video = document.getElementById('video');
 	disableStopButton();
 
+	$('input[type=radio][name=kmsLatency]').change(function() {
+		$('#rateKmsLatency').attr('disabled', this.value == 'false');
+	});
+
 	$('input[type=radio][name=removeFakeClients]').change(function() {
 		$('#playTime').attr('disabled', this.value == 'false');
 	});
@@ -178,6 +182,7 @@ function onOfferViewer(error, offerSdp) {
 	var webrtcChannels = document.getElementById('webrtcChannels').value;
 	var kmsRate = document.getElementById('kmsRate').value;
 	var loadPoints = document.getElementById('loadPoints').value;
+	var kmsLatency = document.getElementsByName('kmsLatency')[0].checked;
 
 	var message = {
 		id : 'viewer',
@@ -196,7 +201,8 @@ function onOfferViewer(error, offerSdp) {
 		kmsNumber : kmsNumber,
 		webrtcChannels : webrtcChannels,
 		loadPoints : loadPoints,
-		kmsRate : kmsRate
+		kmsRate : kmsRate,
+		kmsLatency : kmsLatency
 	}
 	sendMessage(message);
 }

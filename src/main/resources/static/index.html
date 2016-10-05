@@ -105,12 +105,23 @@
 				</div>
 				<div class="row">
 					<div class="col-xs-8">
+						<label class="control-label">Gather internal KMS latency</label>
+					</div>
+					<div class="col-xs-4">
+						<input type="radio" name="kmsLatency" value="true"
+							class="checkbox-inline">True <input type="radio"
+							name="kmsLatency" value="false" class="checkbox-inline"
+							checked="checked">False
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-8">
 						<label class="control-label" for="rateKmsLatency">KMS
 							latencies rate (milliseconds)</label>
 					</div>
 					<div class="col-xs-4">
 						<input class="form-control" type="text" id="rateKmsLatency"
-							name="rateKmsLatency" value="1000"></input>
+							name="rateKmsLatency" value="1000" disabled="disabled"></input>
 					</div>
 					<hr>
 				</div>

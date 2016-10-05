@@ -216,6 +216,7 @@ public class UserSession {
     int webrtcChannels = jsonMessage.getAsJsonPrimitive("webrtcChannels").getAsInt();
     int loadPoints = jsonMessage.getAsJsonPrimitive("loadPoints").getAsInt();
     int kmsRate = jsonMessage.getAsJsonPrimitive("kmsRate").getAsInt();
+    boolean kmsLatency = jsonMessage.getAsJsonPrimitive("kmsLatency").getAsBoolean();
 
     WebRtcEndpoint inputWebRtcEndpoint = (kmsTopology.equalsIgnoreCase("tree"))
         ? treeKmsTopology(presenterSession, processing, kmsNumber, webrtcChannels, loadPoints,
@@ -235,8 +236,12 @@ public class UserSession {
       addFakeClients(presenterSession, jsonMessage, inputWebRtcEndpoint);
     }
 
-    // Viewer videoE2ELatency
-    latencyThread = gatherLatencies(rateKmsLatency);
+    log.info("[Session number {} - WS session {}] Gather KMS latency: {}", sessionNumber,
+        wsSession.getId(), kmsLatency);
+    if (kmsLatency) {
+      // Viewer videoE2ELatency
+      latencyThread = gatherLatencies(rateKmsLatency);
+    }
   }
 
   private WebRtcEndpoint treeKmsTopology(UserSession presenterSession, final String processing,

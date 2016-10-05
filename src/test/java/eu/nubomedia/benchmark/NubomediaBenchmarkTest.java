@@ -116,6 +116,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final int WEBRTC_CHANNELS_DEFAULT = 3;
   public static final String KMS_RATE_PROP = "kms.rate";
   public static final int KMS_RATE_DEFAULT = 5;
+  public static final String KMS_INTERNAL_LATENCY_PROP = "kms.internal.latency";
+  public static final boolean KMS_INTERNAL_LATENCY_DEFAULT = true;
 
   public int index = 0;
   public Table<Integer, Integer, String> csvTable = null;
@@ -131,6 +133,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public boolean kmsTree = getProperty(KMS_TREE_PROP, KMS_TREE_DEFAULT);
   public int extraKmsNumber = getProperty(EXTRA_KMS_PROP, EXTRA_KMS_DEFAULT);
   public int kmsRate = getProperty(KMS_RATE_PROP, KMS_RATE_DEFAULT);
+  public boolean kmsLatency = getProperty(KMS_INTERNAL_LATENCY_PROP, KMS_INTERNAL_LATENCY_DEFAULT);
 
   @Parameters(name = "{index}: {0}")
   public static Collection<Object[]> data() {
@@ -178,11 +181,17 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
         bandwidthWe.clear();
         bandwidthWe.sendKeys(bandwidth);
 
+        // Gather internal KMS latency
+        List<WebElement> kmsLatencyList = webDriver.findElements(By.name("kmsLatency"));
+        kmsLatencyList.get(kmsLatency ? 0 : 1).click();
+
         // Rate KMS latency
-        int rateKmsLatency = getProperty(RATE_KMS_LATENCY_PROP, RATE_KMS_LATENCY_DEFAULT);
-        WebElement rateKmsLatencyWe = webDriver.findElement(By.id("rateKmsLatency"));
-        rateKmsLatencyWe.clear();
-        rateKmsLatencyWe.sendKeys(String.valueOf(rateKmsLatency));
+        if (kmsLatency) {
+          int rateKmsLatency = getProperty(RATE_KMS_LATENCY_PROP, RATE_KMS_LATENCY_DEFAULT);
+          WebElement rateKmsLatencyWe = webDriver.findElement(By.id("rateKmsLatency"));
+          rateKmsLatencyWe.clear();
+          rateKmsLatencyWe.sendKeys(String.valueOf(rateKmsLatency));
+        }
 
         // KMS usage
         List<WebElement> kmsTopologyList = webDriver.findElements(By.name("kmsTopology"));
@@ -406,11 +415,14 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     getPresenter(index).getBrowser().getWebDriver().findElement(By.id("stop")).click();
     getViewer(index).getBrowser().getWebDriver().findElement(By.id("stop")).click();
 
-    // Get latencies from KMS (media pipeline and filter)
-    Multimap<String, Object> mediaPipelineLatencies = getLatencies(getViewer(index).getBrowser(),
-        "mediaPipelineLatencies", "pipelineLatencyMicroSec");
-    Multimap<String, Object> filterLatencies =
-        getLatencies(getViewer(index).getBrowser(), "filterLatencies", "filterLatencyMicroSec");
+    Multimap<String, Object> mediaPipelineLatencies = null, filterLatencies = null;
+    if (kmsLatency) {
+      // Get latencies from KMS (media pipeline and filter)
+      mediaPipelineLatencies = getLatencies(getViewer(index).getBrowser(), "mediaPipelineLatencies",
+          "pipelineLatencyMicroSec");
+      filterLatencies =
+          getLatencies(getViewer(index).getBrowser(), "filterLatencies", "filterLatencyMicroSec");
+    }
 
     // Close browsers
     log.info("[Session {}] Close browsers", index);
@@ -420,13 +432,15 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     // Get E2E latency and statistics
     log.info("[Session {}] Calculating latency and collecting stats", index);
     csvTable = processOcrAndStats(presenterMap, viewerMap);
+    int columnIndex = 1;
 
     // Add media pipeline and filter latencies to result table
-    int columnIndex = 1;
-    addColumnsToTable(csvTable, mediaPipelineLatencies, columnIndex);
-    if (!filterLatencies.values().isEmpty()) {
-      columnIndex++;
-      addColumnsToTable(csvTable, filterLatencies, columnIndex);
+    if (kmsLatency) {
+      addColumnsToTable(csvTable, mediaPipelineLatencies, columnIndex);
+      if (!filterLatencies.values().isEmpty()) {
+        columnIndex++;
+        addColumnsToTable(csvTable, filterLatencies, columnIndex);
+      }
     }
 
     // Get quality metrics (SSIM, PSNR)
