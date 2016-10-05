@@ -20,6 +20,7 @@ package eu.nubomedia.benchmark;
 import static org.kurento.commons.PropertiesManager.getProperty;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,6 +30,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runners.Parameterized.Parameters;
@@ -115,6 +117,8 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final String KMS_RATE_PROP = "kms.rate";
   public static final int KMS_RATE_DEFAULT = 5;
 
+  public int index = 0;
+  public Table<Integer, Integer, String> csvTable = null;
   public int extraTimePerFakeClients = 0;
   public boolean getSsim = getProperty(VIDEO_QUALITY_SSIM_PROP, VIDEO_QUALITY_SSIM_DEFAULT);
   public boolean getPsnr = getProperty(VIDEO_QUALITY_PSNR_PROP, VIDEO_QUALITY_PSNR_DEFAULT);
@@ -274,14 +278,14 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
       if (i != 0) {
         waitMilliSeconds(sessionRateTime);
       }
-      final int j = i;
+      index = i;
       executor.execute(new Runnable() {
         @Override
         public void run() {
           try {
-            exercise(j, sessionsNumber, sessionPlayTime, sessionRateTime);
+            exercise(sessionsNumber, sessionPlayTime, sessionRateTime);
           } catch (Exception e) {
-            log.error("Exception in session {}", j, e);
+            log.error("Exception in session {}", index, e);
           } finally {
             latch.countDown();
           }
@@ -292,7 +296,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
     executor.shutdown();
   }
 
-  public void exercise(int index, int sessionsNumber, int sessionPlayTime, int sessionRateTime)
+  public void exercise(int sessionsNumber, int sessionPlayTime, int sessionRateTime)
       throws Exception {
     log.info("[Session {}] Starting test", index);
 
@@ -415,7 +419,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
 
     // Get E2E latency and statistics
     log.info("[Session {}] Calculating latency and collecting stats", index);
-    Table<Integer, Integer, String> csvTable = processOcrAndStats(presenterMap, viewerMap);
+    csvTable = processOcrAndStats(presenterMap, viewerMap);
 
     // Add media pipeline and filter latencies to result table
     int columnIndex = 1;
@@ -439,10 +443,15 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
       addColumnsToTable(csvTable, psnr, columnIndex);
     }
 
-    // Write CSV
-    String outputCsvFile =
-        outputFolder + this.getClass().getSimpleName() + "-session" + index + ".csv";
-    writeCSV(outputCsvFile, csvTable);
+  }
+
+  @After
+  public void writeCsv() throws IOException {
+    if (csvTable != null) {
+      String outputCsvFile =
+          outputFolder + this.getClass().getSimpleName() + "-session" + index + ".csv";
+      writeCSV(outputCsvFile, csvTable);
+    }
 
     log.info("[Session {}] End of test", index);
   }
