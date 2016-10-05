@@ -117,7 +117,7 @@ public class NubomediaBenchmarkTest extends BrowserTest<WebPage> {
   public static final String KMS_RATE_PROP = "kms.rate";
   public static final int KMS_RATE_DEFAULT = 5;
   public static final String KMS_INTERNAL_LATENCY_PROP = "kms.internal.latency";
-  public static final boolean KMS_INTERNAL_LATENCY_DEFAULT = true;
+  public static final boolean KMS_INTERNAL_LATENCY_DEFAULT = false;
 
   public int index = 0;
   public Table<Integer, Integer, String> csvTable = null;
