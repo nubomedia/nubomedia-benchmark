@@ -141,7 +141,7 @@ public class UserSession {
   }
 
   private Thread gatherLatencies(final int rateKmsLatency) {
-    mediaPipeline.setLatencyStats(true);
+    webRtcEndpoint.getMediaPipeline().setLatencyStats(true);
 
     Thread thread = new Thread(new Runnable() {
       @Override
@@ -190,11 +190,13 @@ public class UserSession {
 
           } catch (Exception e) {
             log.debug("Exception gathering videoE2ELatency {}", e.getMessage());
+            return;
           } finally {
             try {
               Thread.sleep(rateKmsLatency);
             } catch (InterruptedException e) {
               log.debug("Interrupted thread for gathering videoE2ELatency");
+              return;
             }
           }
         }
